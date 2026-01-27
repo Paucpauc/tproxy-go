@@ -1,5 +1,0 @@
-#!/bin/bash
-chmod 755 /usr/bin/tproxy
-echo "tproxy installed successfully"
-echo "Configuration file: /etc/tproxy/proxy_config.yaml"
-echo "Usage: tproxy --config /etc/tproxy/proxy_config.yaml"
