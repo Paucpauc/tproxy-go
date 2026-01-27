@@ -48,7 +48,7 @@ echo "Output directory: $OUTPUT_DIR"
 
 # Build the binary
 CGO_ENABLED=0 GOOS=linux GOARCH=$GOARCH GOARM=$GOARM \
-    go build -a -installsuffix cgo -ldflags='-w -s -extldflags "-static"' \
+    go build -a -installsuffix cgo -ldflags='-buildid= -extldflags "-static"' \
     -o "$OUTPUT_DIR/tproxy-$ARCH" ./cmd/tproxy
 
 # Create a symlink for the current architecture
