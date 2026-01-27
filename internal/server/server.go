@@ -27,7 +27,12 @@ func getOriginalDst(conn net.Conn) (string, int, error) {
 	if err != nil {
 		return "", 0, err
 	}
-	defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			// File close errors are expected and can be safely ignored
+			_ = closeErr // explicitly ignore the error
+		}
+	}()
 
 	fd := int(file.Fd())
 
@@ -58,7 +63,12 @@ func getOriginalDst(conn net.Conn) (string, int, error) {
 }
 
 func handleHTTPSClient(conn net.Conn, rules []config.Rule) {
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			// Connection close errors are expected and can be safely ignored
+			_ = err // explicitly ignore the error
+		}
+	}()
 
 	clientIP := conn.RemoteAddr().String()
 	originalIP := ""
@@ -106,7 +116,12 @@ func handleHTTPSClient(conn net.Conn, rules []config.Rule) {
 }
 
 func handleHTTPClient(conn net.Conn, rules []config.Rule) {
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			// Connection close errors are expected and can be safely ignored
+			_ = err // explicitly ignore the error
+		}
+	}()
 
 	clientIP := conn.RemoteAddr().String()
 	originalIP := ""
@@ -185,7 +200,12 @@ func proxyConnection(
 		fmt.Printf("Connection failed: %v\n", err)
 		return
 	}
-	defer remoteConn.Close()
+	defer func() {
+		if closeErr := remoteConn.Close(); closeErr != nil {
+			// Connection close errors are expected and can be safely ignored
+			_ = closeErr // explicitly ignore the error
+		}
+	}()
 
 	// Send initial data if we have it
 	if len(initialData) > 0 {
@@ -218,14 +238,24 @@ func StartServers(config *config.Config) error {
 	if err != nil {
 		return fmt.Errorf("failed to start HTTPS server: %w", err)
 	}
-	defer httpsListener.Close()
+	defer func() {
+		if closeErr := httpsListener.Close(); closeErr != nil {
+			// Listener close errors are expected and can be safely ignored
+			_ = closeErr // explicitly ignore the error
+		}
+	}()
 
 	// Start HTTP server
 	httpListener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", listenConfig.Host, listenConfig.HTTPPort))
 	if err != nil {
 		return fmt.Errorf("failed to start HTTP server: %w", err)
 	}
-	defer httpListener.Close()
+	defer func() {
+		if closeErr := httpListener.Close(); closeErr != nil {
+			// Listener close errors are expected and can be safely ignored
+			_ = closeErr // explicitly ignore the error
+		}
+	}()
 
 	fmt.Printf("SNI proxy (HTTPS) listening on %s:%d\n", listenConfig.Host, listenConfig.HTTPSPort)
 	fmt.Printf("Host proxy (HTTP) listening on %s:%d\n", listenConfig.Host, listenConfig.HTTPPort)

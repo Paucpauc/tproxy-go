@@ -78,16 +78,6 @@ func (m *mockConn) GetWrittenData() []byte {
 	return m.writeBuf.Bytes()
 }
 
-// Mock TCP connection that implements File() method
-type mockTCPConn struct {
-	*mockConn
-}
-
-func (m *mockTCPConn) File() (f *os.File, err error) {
-	// Return a dummy file - in real implementation this would be more complex
-	return nil, fmt.Errorf("not implemented in mock")
-}
-
 func TestProxyConnection_Direct(t *testing.T) {
 	// Create mock client connection
 	clientConn := newMockConn()
@@ -266,7 +256,11 @@ func TestCreateMockServer(t *testing.T) {
 	if err != nil {
 		t.Skipf("Cannot create test listener: %v", err)
 	}
-	defer listener.Close()
+	defer func() {
+		if err := listener.Close(); err != nil {
+			t.Logf("Listener close error: %v", err)
+		}
+	}()
 
 	// Start server in background
 	var wg sync.WaitGroup
@@ -278,7 +272,11 @@ func TestCreateMockServer(t *testing.T) {
 		if err != nil {
 			return
 		}
-		defer conn.Close()
+		defer func() {
+			if err := conn.Close(); err != nil {
+				t.Logf("Connection close error: %v", err)
+			}
+		}()
 
 		// Simple echo server
 		reader := bufio.NewReader(conn)
@@ -286,7 +284,10 @@ func TestCreateMockServer(t *testing.T) {
 		if err != nil {
 			return
 		}
-		conn.Write([]byte("ECHO: " + line))
+		_, err = conn.Write([]byte("ECHO: " + line))
+		if err != nil {
+			return
+		}
 	}()
 
 	// Test connection to mock server
@@ -294,7 +295,11 @@ func TestCreateMockServer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to connect to mock server: %v", err)
 	}
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			t.Logf("Connection close error: %v", err)
+		}
+	}()
 
 	// Send test data
 	testData := "Hello, Server!\n"
@@ -316,16 +321,28 @@ func TestCreateMockServer(t *testing.T) {
 	}
 
 	// Cleanup
-	conn.Close()
-	listener.Close()
+	if err := conn.Close(); err != nil {
+		t.Logf("Connection close error: %v", err)
+	}
+	if err := listener.Close(); err != nil {
+		t.Logf("Listener close error: %v", err)
+	}
 	wg.Wait()
 }
 
 // Test context cancellation in pipe operations
 func TestContextCancellation(t *testing.T) {
 	clientConn, serverConn := net.Pipe()
-	defer clientConn.Close()
-	defer serverConn.Close()
+	defer func() {
+		if err := clientConn.Close(); err != nil {
+			t.Logf("Client connection close error: %v", err)
+		}
+	}()
+	defer func() {
+		if err := serverConn.Close(); err != nil {
+			t.Logf("Server connection close error: %v", err)
+		}
+	}()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup

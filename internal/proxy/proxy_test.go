@@ -347,8 +347,12 @@ func TestPipe_BasicDataTransfer(t *testing.T) {
 	}
 
 	// Close connections and cancel context
-	clientConn.Close()
-	serverConn.Close()
+	if err := clientConn.Close(); err != nil {
+		t.Logf("Client connection close error: %v", err)
+	}
+	if err := serverConn.Close(); err != nil {
+		t.Logf("Server connection close error: %v", err)
+	}
 	cancel()
 	wg.Wait()
 }
@@ -370,8 +374,12 @@ func TestPipe_ContextCancellation(t *testing.T) {
 	wg.Wait()
 
 	// Close connections
-	clientConn.Close()
-	serverConn.Close()
+	if err := clientConn.Close(); err != nil {
+		t.Logf("Client connection close error: %v", err)
+	}
+	if err := serverConn.Close(); err != nil {
+		t.Logf("Server connection close error: %v", err)
+	}
 
 	// Verify connections are closed or in error state
 	_, err := clientConn.Write([]byte("test"))
@@ -386,7 +394,11 @@ func TestConnectDirect_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to start test server: %v", err)
 	}
-	defer listener.Close()
+	defer func() {
+		if err := listener.Close(); err != nil {
+			t.Logf("Listener close error: %v", err)
+		}
+	}()
 
 	// Accept connections in background
 	go func() {
@@ -394,7 +406,9 @@ func TestConnectDirect_Success(t *testing.T) {
 		if err != nil {
 			return
 		}
-		conn.Close()
+		if err := conn.Close(); err != nil {
+			t.Logf("Connection close error: %v", err)
+		}
 	}()
 
 	// Test connection
@@ -406,7 +420,11 @@ func TestConnectDirect_Success(t *testing.T) {
 		t.Errorf("ConnectDirect failed: %v", err)
 		return
 	}
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			t.Logf("Connection close error: %v", err)
+		}
+	}()
 
 	if conn == nil {
 		t.Error("ConnectDirect returned nil connection")
@@ -416,7 +434,9 @@ func TestConnectDirect_Success(t *testing.T) {
 func TestConnectDirect_InvalidHost(t *testing.T) {
 	conn, err := ConnectDirect("invalid-host-that-does-not-exist", 9999)
 	if err == nil {
-		conn.Close()
+		if err := conn.Close(); err != nil {
+			t.Logf("Connection close error: %v", err)
+		}
 		t.Error("Expected ConnectDirect to fail with invalid host")
 	}
 }
@@ -427,14 +447,22 @@ func TestConnectViaProxy_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to start mock proxy: %v", err)
 	}
-	defer proxyListener.Close()
+	defer func() {
+		if err := proxyListener.Close(); err != nil {
+			t.Logf("Proxy listener close error: %v", err)
+		}
+	}()
 
 	// Start target server
 	targetListener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("Failed to start target server: %v", err)
 	}
-	defer targetListener.Close()
+	defer func() {
+		if err := targetListener.Close(); err != nil {
+			t.Logf("Target listener close error: %v", err)
+		}
+	}()
 
 	// Mock proxy handler
 	go func() {
@@ -442,7 +470,11 @@ func TestConnectViaProxy_Success(t *testing.T) {
 		if err != nil {
 			return
 		}
-		defer conn.Close()
+		defer func() {
+			if err := conn.Close(); err != nil {
+				t.Logf("Connection close error: %v", err)
+			}
+		}()
 
 		// Read CONNECT request
 		reader := bufio.NewReader(conn)
@@ -458,7 +490,10 @@ func TestConnectViaProxy_Success(t *testing.T) {
 
 		// Send successful response
 		response := "HTTP/1.1 200 Connection Established\r\n\r\n"
-		conn.Write([]byte(response))
+		_, err = conn.Write([]byte(response))
+		if err != nil {
+			return
+		}
 	}()
 
 	// Test proxy connection
@@ -473,7 +508,11 @@ func TestConnectViaProxy_Success(t *testing.T) {
 		t.Errorf("ConnectViaProxy failed: %v", err)
 		return
 	}
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			t.Logf("Connection close error: %v", err)
+		}
+	}()
 
 	if conn == nil {
 		t.Error("ConnectViaProxy returned nil connection")
@@ -486,18 +525,29 @@ func TestConnectViaProxy_ProxyError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to start mock proxy: %v", err)
 	}
-	defer proxyListener.Close()
+	defer func() {
+		if err := proxyListener.Close(); err != nil {
+			t.Logf("Proxy listener close error: %v", err)
+		}
+	}()
 
 	go func() {
 		conn, err := proxyListener.Accept()
 		if err != nil {
 			return
 		}
-		defer conn.Close()
+		defer func() {
+			if err := conn.Close(); err != nil {
+				t.Logf("Connection close error: %v", err)
+			}
+		}()
 
 		// Send error response
 		response := "HTTP/1.1 500 Internal Server Error\r\n\r\n"
-		conn.Write([]byte(response))
+		_, err = conn.Write([]byte(response))
+		if err != nil {
+			return
+		}
 	}()
 
 	proxyHost := "127.0.0.1"
@@ -505,7 +555,9 @@ func TestConnectViaProxy_ProxyError(t *testing.T) {
 
 	conn, err := ConnectViaProxy(proxyHost, proxyPort, "example.com", 443, "192.168.1.1")
 	if err == nil {
-		conn.Close()
+		if err := conn.Close(); err != nil {
+			t.Logf("Connection close error: %v", err)
+		}
 		t.Error("Expected ConnectViaProxy to fail with proxy error")
 	}
 }
@@ -513,7 +565,9 @@ func TestConnectViaProxy_ProxyError(t *testing.T) {
 func TestConnectViaProxy_InvalidProxy(t *testing.T) {
 	conn, err := ConnectViaProxy("invalid-proxy", 9999, "example.com", 443, "192.168.1.1")
 	if err == nil {
-		conn.Close()
+		if err := conn.Close(); err != nil {
+			t.Logf("Connection close error: %v", err)
+		}
 		t.Error("Expected ConnectViaProxy to fail with invalid proxy")
 	}
 }

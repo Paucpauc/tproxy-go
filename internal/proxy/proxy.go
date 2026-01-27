@@ -88,10 +88,14 @@ func ParseSNI(data []byte) string {
 		handshakeLength = recordLength - 4
 	}
 
-	// Don't require complete handshake - we only need the beginning to parse SNI
-	// if len(data) < 9+handshakeLength {
-	// 	return "" // Incomplete handshake
-	// }
+	// Validate we have enough data for the handshake
+	if len(data) < 9+handshakeLength {
+		// If we don't have complete handshake, use available data
+		handshakeLength = len(data) - 9
+		if handshakeLength < 0 {
+			return "" // Not enough data for handshake
+		}
+	}
 
 	// Start parsing ClientHello at position 9
 	pos := 9
@@ -211,7 +215,12 @@ func ParseSNI(data []byte) string {
 
 func Pipe(ctx context.Context, src, dst net.Conn, wg *sync.WaitGroup) {
 	defer wg.Done()
-	defer dst.Close()
+	defer func() {
+		if err := dst.Close(); err != nil {
+			// Connection close errors are expected and can be safely ignored
+			_ = err // explicitly ignore the error
+		}
+	}()
 
 	buf := make([]byte, 4096) // BUFFER_SIZE is now in config package
 	for {
@@ -234,11 +243,11 @@ func Pipe(ctx context.Context, src, dst net.Conn, wg *sync.WaitGroup) {
 }
 
 func ConnectDirect(host string, port int) (net.Conn, error) {
-	return net.Dial("tcp", fmt.Sprintf("%s:%d", host, port))
+	return net.Dial("tcp", net.JoinHostPort(host, strconv.Itoa(port)))
 }
 
 func ConnectViaProxy(proxyHost string, proxyPort int, targetHost string, targetPort int, clientIP string) (net.Conn, error) {
-	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", proxyHost, proxyPort))
+	conn, err := net.Dial("tcp", net.JoinHostPort(proxyHost, strconv.Itoa(proxyPort)))
 	if err != nil {
 		return nil, err
 	}
@@ -255,7 +264,10 @@ func ConnectViaProxy(proxyHost string, proxyPort int, targetHost string, targetP
 	)
 
 	if _, err := conn.Write([]byte(connectRequest)); err != nil {
-		conn.Close()
+		if closeErr := conn.Close(); closeErr != nil {
+			// Connection close errors are expected and can be safely ignored
+			_ = closeErr // explicitly ignore the error
+		}
 		return nil, err
 	}
 
@@ -263,12 +275,18 @@ func ConnectViaProxy(proxyHost string, proxyPort int, targetHost string, targetP
 	reader := bufio.NewReader(conn)
 	response, err := reader.ReadString('\n')
 	if err != nil {
-		conn.Close()
+		if closeErr := conn.Close(); closeErr != nil {
+			// Connection close errors are expected and can be safely ignored
+			_ = closeErr // explicitly ignore the error
+		}
 		return nil, err
 	}
 
 	if !strings.HasPrefix(response, "HTTP/1.1 200") {
-		conn.Close()
+		if closeErr := conn.Close(); closeErr != nil {
+			// Connection close errors are expected and can be safely ignored
+			_ = closeErr // explicitly ignore the error
+		}
 		return nil, fmt.Errorf("proxy connection failed: %s", response)
 	}
 
