@@ -82,34 +82,36 @@ for ARCH in "${PACKAGE_ARCHS[@]}"; do
     
     echo "✓ DEB package built: $OUTPUT_DIR/deb/tproxy_${ARCH}.deb"
     
-    # Build RPM package using Docker
-    echo "Building RPM package for $ARCH..."
-    docker run --rm \
-        -v "$(pwd)":/app \
-        -w /app \
-        -e ARCH=$ARCH \
-        -e RPMARCH=$RPMARCH \
-        fedora:latest \
-        sh -c "
-            dnf install -y rpm-build sed && \
-            mkdir -p /tmp/rpm-build/{BUILD,RPMS,SOURCES,SPECS,SRPMS} && \
-            cp packaging/rpm/tproxy.spec /tmp/rpm-build/SPECS/ && \
-            # Update BuildArch in spec file
-            sed -i \"s/BuildArch: x86_64/BuildArch: $RPMARCH/g\" /tmp/rpm-build/SPECS/tproxy.spec && \
-            # Create source tarball
-            mkdir -p /tmp/tproxy-1.0.0 && \
-            cp build/tproxy-$ARCH /tmp/tproxy-1.0.0/tproxy && \
-            cp proxy_config.yaml /tmp/tproxy-1.0.0/ && \
-            cp README.md /tmp/tproxy-1.0.0/ && \
-            cp packaging/tproxy.service /tmp/tproxy-1.0.0/ && \
-            cd /tmp && \
-            tar -czf /tmp/rpm-build/SOURCES/tproxy-1.0.0.tar.gz tproxy-1.0.0 && \
-            cd /tmp/rpm-build && \
-            rpmbuild -bb --define \"_topdir /tmp/rpm-build\" --target $RPMARCH SPECS/tproxy.spec && \
-            cp RPMS/$RPMARCH/*.rpm /app/$OUTPUT_DIR/rpm/
-        "
-    
-    echo "✓ RPM package built: $OUTPUT_DIR/rpm/tproxy-*${RPMARCH}.rpm"
+    # Build RPM package using Docker (only for amd64 - cross-compilation not supported)
+    if [ "$ARCH" = "amd64" ]; then
+        echo "Building RPM package for $ARCH..."
+        docker run --rm \
+            -v "$(pwd)":/app \
+            -w /app \
+            -e ARCH=$ARCH \
+            -e RPMARCH=$RPMARCH \
+            fedora:latest \
+            sh -c "
+                dnf install -y rpm-build sed && \
+                mkdir -p /tmp/rpm-build/{BUILD,RPMS,SOURCES,SPECS,SRPMS} && \
+                cp packaging/rpm/tproxy.spec /tmp/rpm-build/SPECS/ && \
+                # Create source tarball
+                mkdir -p /tmp/tproxy-1.0.0 && \
+                cp build/tproxy-$ARCH /tmp/tproxy-1.0.0/tproxy && \
+                cp proxy_config.yaml /tmp/tproxy-1.0.0/ && \
+                cp README.md /tmp/tproxy-1.0.0/ && \
+                cp packaging/tproxy.service /tmp/tproxy-1.0.0/ && \
+                cd /tmp && \
+                tar -czf /tmp/rpm-build/SOURCES/tproxy-1.0.0.tar.gz tproxy-1.0.0 && \
+                cd /tmp/rpm-build && \
+                rpmbuild -bb --define \"_topdir /tmp/rpm-build\" --define \"debug_package %{nil}\" --define \"_build_id_links none\" SPECS/tproxy.spec && \
+                cp RPMS/x86_64/*.rpm /app/$OUTPUT_DIR/rpm/
+            "
+        
+        echo "✓ RPM package built: $OUTPUT_DIR/rpm/tproxy-*x86_64.rpm"
+    else
+        echo "⚠ Skipping RPM package for $ARCH (cross-compilation not supported)"
+    fi
 done
 
 echo ""
