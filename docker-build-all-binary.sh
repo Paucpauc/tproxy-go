@@ -52,7 +52,7 @@ for ARCH in "${ARCHS[@]}"; do
         $IMAGE_NAME \
         sh -c "
             apk add --no-cache git ca-certificates tzdata && \
-            go build -a -installsuffix cgo -ldflags='-w -s -extldflags \"-static\"' \
+            go build -buildvcs=false -a -installsuffix cgo -ldflags='-w -s -extldflags \"-static\"' \
             -o /app/$OUTPUT_DIR/tproxy-$ARCH ./cmd/tproxy
         "
     

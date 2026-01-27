@@ -22,7 +22,7 @@ COPY . .
 
 # Build static binary with optimizations for target architecture
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} GOARM=${TARGETVARIANT:-7} \
-    go build -a -installsuffix cgo -ldflags='-w -s -extldflags "-static"' -o tproxy ./cmd/tproxy
+    go build -buildvcs=false -a -installsuffix cgo -ldflags='-w -s -extldflags "-static"' -o tproxy ./cmd/tproxy
 
 # Create minimal runtime image
 FROM scratch

@@ -45,7 +45,7 @@ for ARCH in "${PACKAGE_ARCHS[@]}"; do
         golang:1.21-alpine \
         sh -c "
             apk add --no-cache git ca-certificates tzdata && \
-            go build -a -installsuffix cgo -ldflags='-w -s -extldflags \"-static\"' \
+            go build -buildvcs=false -a -installsuffix cgo -ldflags='-w -s -extldflags \"-static\"' \
             -o /app/build/tproxy-$ARCH ./cmd/tproxy
         "
     
