@@ -86,5 +86,5 @@ jobs:
       - name: Validate package build
         if: matrix.arch != 'arm'  # DEB don't support ARMv7
         run: |
-          ./docker-build-packages.sh
+          ./docker-build-packages-minimal.sh
           ls -la build/packages/
