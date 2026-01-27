@@ -68,6 +68,12 @@ rules:
 
 The project supports multiple build methods:
 
+### GitHub Actions (Automated CI/CD)
+- **Continuous Integration**: Tests run on every push and pull request
+- **Automated Releases**: Binaries, packages, and Docker images built automatically on tag pushes
+- **Multi-Architecture**: Builds for amd64, arm64, and arm (ARMv7) architectures
+- **Nightly Builds**: Comprehensive builds and security scans run daily
+
 ### Docker-Based Builds (Recommended - No Local Tools Required)
 ```bash
 # Build binaries for all architectures
@@ -152,13 +158,18 @@ services:
 To use this proxy in transparent mode, configure iptables rules:
 
 ```bash
-# Redirect HTTPS traffic (port 443) to SNI proxy
-iptables -t nat -I PREROUTING -p tcp --dport 443 \
+# Redirect HTTPS traffic from specific clients to SNI proxy
+# Replace 192.168.1.0/24 with your client network
+iptables -t nat -I PREROUTING -s 192.168.1.0/24 -p tcp --dport 443 \
   -j DNAT --to-destination 127.0.0.1:3130
 
-# Redirect HTTP traffic (port 80) to HTTP proxy
-iptables -t nat -I PREROUTING -p tcp --dport 80 \
+# Redirect HTTP traffic from specific clients to HTTP proxy
+iptables -t nat -I PREROUTING -s 192.168.1.0/24 -p tcp --dport 80 \
   -j DNAT --to-destination 127.0.0.1:3131
+
+# Exclude proxy server traffic from redirection (prevent dead loop)
+iptables -t nat -I PREROUTING -s 127.0.0.1 -j ACCEPT
+iptables -t nat -I PREROUTING -s 192.168.1.100 -j ACCEPT  # Replace with proxy server IP
 ```
 
 **Key Advantage**: Unlike traditional transparent proxies that route based on IP addresses, this proxy extracts the SNI from TLS handshakes and uses the actual domain name when connecting to upstream proxies, providing more accurate routing and better compatibility with modern web services.
@@ -216,6 +227,27 @@ tproxy-go/
 3. Make changes with tests
 4. Submit a pull request
 5. Ensure all tests pass
+
+### GitHub Actions Workflows
+
+The project uses GitHub Actions for automated testing and deployment:
+
+- **CI Workflow**: Runs on every push and pull request
+  - Unit tests with multiple Go versions
+  - Linting and code validation
+  - Build validation for all architectures
+  - Security scanning
+
+- **Build Workflow**: Runs on tag pushes (`v*`)
+  - Builds binaries for amd64, arm64, and arm
+  - Creates DEB and RPM packages
+  - Builds and pushes multi-arch Docker images
+  - Automatically creates GitHub releases
+
+- **Nightly Workflow**: Runs daily at 2 AM UTC
+  - Comprehensive builds and tests
+  - Security vulnerability scanning
+  - Dependency update checks
 
 ## 📄 License
 
