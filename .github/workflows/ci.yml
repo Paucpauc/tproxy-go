@@ -84,7 +84,7 @@ jobs:
           ./build/tproxy-${{ matrix.arch }} --version || true
 
       - name: Validate package build
-        if: matrix.arch != 'arm'  # DEB/RPM don't support ARMv7
+        if: matrix.arch != 'arm'  # DEB don't support ARMv7
         run: |
           ./docker-build-packages.sh
           ls -la build/packages/

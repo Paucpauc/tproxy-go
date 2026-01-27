@@ -20,11 +20,6 @@ This is a Go implementation of a transparent HTTP/HTTPS proxy server with config
    sudo dpkg -i tproxy_1.0.0_amd64.deb
    ```
 
-2. **RPM Package (CentOS/RHEL/Fedora)**:
-   ```bash
-   wget https://github.com/Paucpauc/tproxy-go/releases/latest/download/tproxy-1.0.0-1.x86_64.rpm
-   sudo rpm -i tproxy-1.0.0-1.x86_64.rpm
-   ```
 
 3. **Docker**:
    ```bash
@@ -103,7 +98,6 @@ make packages
 | Platform | Architecture | Package Type | Container Support |
 |----------|--------------|--------------|-------------------|
 | Debian/Ubuntu | amd64, arm64 | DEB | ✅ |
-| CentOS/RHEL/Fedora | amd64, arm64 | RPM | ✅ |
 | Generic Linux | amd64, arm64, arm | Binary | ✅ |
 | Mikrotik RouterOS | arm (ARMv7) | Binary/Container | ✅ |
 | Docker | Multi-arch | Image | ✅ |
@@ -213,7 +207,7 @@ tproxy-go/
 │   ├── config/          # Configuration loading and parsing
 │   ├── proxy/           # Proxy connection handling
 │   └── server/          # HTTP/HTTPS server implementation
-├── packaging/           # DEB and RPM package definitions
+├── packaging/           # DEB package definitions
 ├── tests/               # Test data files
 ├── WIKI.md             # Comprehensive documentation
 ├── QUICK_START.md      # Quick start guide
@@ -240,7 +234,7 @@ The project uses GitHub Actions for automated testing and deployment:
 
 - **Build Workflow**: Runs on tag pushes (`v*`)
   - Builds binaries for amd64, arm64, and arm
-  - Creates DEB and RPM packages
+  - Creates DEB packages
   - Builds and pushes multi-arch Docker images
   - Automatically creates GitHub releases
 

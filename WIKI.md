@@ -127,44 +127,6 @@ sudo dpkg -i build/packages/deb/tproxy_1.0.0_amd64.deb
 - Configuration: `/etc/tproxy/proxy_config.yaml`
 - Documentation: `/usr/share/doc/tproxy/`
 
-### 2. RPM Package (CentOS/RHEL/Fedora)
-
-#### Using Pre-built Packages
-
-```bash
-# Download the appropriate RPM package
-wget https://github.com/Paucpauc/tproxy-go/releases/latest/download/tproxy-1.0.0-1.x86_64.rpm
-
-# Install the package
-sudo rpm -i tproxy-1.0.0-1.x86_64.rpm
-```
-
-#### Building from Source
-
-```bash
-# Clone the repository
-git clone https://github.com/Paucpauc/tproxy-go.git
-cd tproxy-go
-
-# Build RPM package for current architecture
-make docker-packages
-
-# Install the built package
-sudo rpm -i build/packages/rpm/tproxy-1.0.0-1.x86_64.rpm
-```
-
-#### Package Management
-
-```bash
-# Check installed package
-rpm -qi tproxy
-
-# Verify package files
-rpm -ql tproxy
-
-# Remove package
-sudo rpm -e tproxy
-```
 
 ### 3. Docker Deployment
 
@@ -625,7 +587,7 @@ tproxy-go/
 │   ├── config/          # Configuration handling
 │   ├── proxy/           # Proxy logic
 │   └── server/          # Server implementation
-├── packaging/           # Package definitions
+├── packaging/           # DEB package definitions
 └── tests/              # Test data
 ```
 
@@ -652,7 +614,7 @@ This project is provided as-is for educational and development purposes. See LIC
 ### Version 1.0.0
 - Initial release with multi-architecture support
 - Docker containerization
-- DEB/RPM package support
+- DEB package support
 - SNI-based routing
 - Comprehensive configuration system
 

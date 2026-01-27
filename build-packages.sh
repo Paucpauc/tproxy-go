@@ -12,11 +12,6 @@ echo "=== Building DEB packages (minimal) ==="
 ./build-deb-minimal.sh amd64
 ./build-deb-minimal.sh arm64
 
-# Build RPM packages (amd64 only)
-echo "=== Building RPM packages ==="
-./build-rpm.sh amd64
-
 echo "All packages built successfully!"
 echo "Packages location: build/packages/"
 echo "  DEB packages: build/packages/deb/ (built with minimal alpine image)"
-echo "  RPM packages: build/packages/rpm/ (amd64 only)"

@@ -102,11 +102,9 @@ help:
 	@echo "  docker          - Build Docker image for current architecture"
 	@echo "  docker-all      - Build Docker images for all architectures"
 	@echo "  docker-push     - Build and push Docker images for all architectures"
-	@echo "  packages           - Build DEB/RPM packages for all architectures using minimal approach"
-	@echo "  packages-all       - Build DEB/RPM packages for all architectures (alias)"
-	
-	
-	@echo "  docker-packages-minimal - Build DEB/RPM packages using minimal Docker approach"
+	@echo "  packages           - Build DEB packages for all architectures using minimal approach"
+	@echo "  packages-all       - Build DEB packages for all architectures (alias)"
+	@echo "  docker-packages-minimal - Build DEB packages using minimal Docker approach"
 	@echo "  clean           - Clean build artifacts"
 	@echo "  test            - Run tests using local Go"
 	@echo "  test-all        - Run all tests with verbose output and coverage"
@@ -121,15 +119,12 @@ help:
 	@echo ""
 	@echo "Package support:"
 	@echo "  - DEB packages: amd64, arm64"
-	@echo "  - RPM packages: amd64, arm64"
 	@echo ""
 	@echo "Usage examples:"
 	@echo "  make docker-build-all    # Build binaries for all architectures using Docker"
 	@echo "  make docker-all          # Build Docker images for all architectures"
-	
 	@echo "  make docker-packages-minimal  # Build packages using minimal Docker approach"
-	@echo "  make packages-all             # Build DEB/RPM packages for all architectures"
-	
+	@echo "  make packages-all             # Build DEB packages for all architectures"
 	@echo "  make test                # Run tests using local Go"
 	@echo "  make docker-test         # Run tests using Docker"
 	@echo "  ./docker-build-binary.sh arm  # Build specifically for ARM using Docker"

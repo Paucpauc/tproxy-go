@@ -22,11 +22,6 @@ wget https://github.com/Paucpauc/tproxy-go/releases/latest/download/tproxy_1.0.0
 sudo dpkg -i tproxy_1.0.0_amd64.deb
 ```
 
-#### Option 3: RPM Package (CentOS/RHEL/Fedora)
-```bash
-wget https://github.com/Paucpauc/tproxy-go/releases/latest/download/tproxy-1.0.0-1.x86_64.rpm
-sudo rpm -i tproxy-1.0.0-1.x86_64.rpm
-```
 
 #### Option 4: Docker
 ```bash
@@ -109,8 +104,6 @@ make docker-packages
 # Install DEB package
 sudo dpkg -i build/packages/deb/tproxy_1.0.0_amd64.deb
 
-# Install RPM package
-sudo rpm -i build/packages/rpm/tproxy-1.0.0-1.x86_64.rpm
 ```
 
 ### Docker Operations
