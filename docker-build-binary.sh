@@ -60,7 +60,7 @@ docker run --rm \
     $IMAGE_NAME \
     sh -c "
         apk add --no-cache git ca-certificates tzdata && \
-        go build -buildvcs=false -a -installsuffix cgo -ldflags='-buildid= -extldflags \"-static\"' \
+        go build -buildvcs=false -a -installsuffix cgo -ldflags='-extldflags \"-static\"' \
         -o /app/$OUTPUT_DIR/tproxy-$ARCH ./cmd/tproxy
     "
 

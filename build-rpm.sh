@@ -83,14 +83,13 @@ The proxy extracts SNI from TLS connections and routes traffic to upstream proxi
 
 %build
 # Binary is already built, just copy it
+# Disable build ID generation for static Go binaries
+%global _build_id_links none
 cp tproxy %{_builddir}/tproxy
 
 %install
 mkdir -p %{buildroot}/usr/bin
 install -m 755 %{_builddir}/tproxy %{buildroot}/usr/bin/tproxy
-
-# Disable build ID generation for static Go binaries
-%global _build_id_links none
 
 mkdir -p %{buildroot}/etc/tproxy
 install -m 644 proxy_config.yaml %{buildroot}/etc/tproxy/
