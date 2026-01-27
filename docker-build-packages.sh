@@ -24,13 +24,15 @@ mkdir -p "$OUTPUT_DIR/rpm"
 for ARCH in "${PACKAGE_ARCHS[@]}"; do
     echo "=== Building packages for $ARCH ==="
     
-    # Set GOARCH based on architecture
+    # Set GOARCH and RPMARCH based on architecture
     case $ARCH in
         "amd64")
             GOARCH="amd64"
+            RPMARCH="x86_64"
             ;;
         "arm64")
             GOARCH="arm64"
+            RPMARCH="aarch64"
             ;;
     esac
     
@@ -60,9 +62,14 @@ for ARCH in "${PACKAGE_ARCHS[@]}"; do
         debian:bullseye-slim \
         sh -c "
             apt-get update && \
-            apt-get install -y dpkg-dev fakeroot && \
+            apt-get install -y dpkg-dev fakeroot sed && \
             mkdir -p /tmp/deb-build && \
-            cp -r packaging/deb/* /tmp/deb-build/ && \
+            mkdir -p /tmp/deb-build/DEBIAN && \
+            cp packaging/deb/control /tmp/deb-build/DEBIAN/ && \
+            cp packaging/deb/postinst /tmp/deb-build/DEBIAN/ && \
+            cp packaging/deb/prerm /tmp/deb-build/DEBIAN/ && \
+            # Update Architecture field in control file
+            sed -i \"s/Architecture: amd64/Architecture: $ARCH/g\" /tmp/deb-build/DEBIAN/control && \
             mkdir -p /tmp/deb-build/usr/bin && \
             cp build/tproxy-$ARCH /tmp/deb-build/usr/bin/tproxy && \
             mkdir -p /tmp/deb-build/etc/tproxy && \
@@ -81,20 +88,24 @@ for ARCH in "${PACKAGE_ARCHS[@]}"; do
         -v "$(pwd)":/app \
         -w /app \
         -e ARCH=$ARCH \
+        -e RPMARCH=$RPMARCH \
         fedora:latest \
         sh -c "
-            dnf install -y rpm-build && \
+            dnf install -y rpm-build sed && \
             mkdir -p /tmp/rpm-build/{BUILD,RPMS,SOURCES,SPECS,SRPMS} && \
             cp packaging/rpm/tproxy.spec /tmp/rpm-build/SPECS/ && \
+            # Update BuildArch in spec file
+            sed -i \"s/BuildArch: x86_64/BuildArch: $RPMARCH/g\" /tmp/rpm-build/SPECS/tproxy.spec && \
             cp build/tproxy-$ARCH /tmp/rpm-build/BUILD/ && \
             cp proxy_config.yaml /tmp/rpm-build/BUILD/ && \
             cp README.md /tmp/rpm-build/BUILD/ && \
+            cp packaging/tproxy.service /tmp/rpm-build/BUILD/ && \
             cd /tmp/rpm-build && \
-            rpmbuild -bb --define \"_topdir /tmp/rpm-build\" --target $ARCH SPECS/tproxy.spec && \
-            cp RPMS/$ARCH/*.rpm /app/$OUTPUT_DIR/rpm/
+            rpmbuild -bb --define \"_topdir /tmp/rpm-build\" --target $RPMARCH SPECS/tproxy.spec && \
+            cp RPMS/$RPMARCH/*.rpm /app/$OUTPUT_DIR/rpm/
         "
     
-    echo "✓ RPM package built: $OUTPUT_DIR/rpm/tproxy-*${ARCH}.rpm"
+    echo "✓ RPM package built: $OUTPUT_DIR/rpm/tproxy-*${RPMARCH}.rpm"
 done
 
 echo ""
