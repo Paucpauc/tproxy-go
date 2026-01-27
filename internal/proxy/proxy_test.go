@@ -1,11 +1,15 @@
 package proxy
 
 import (
+	"bufio"
+	"context"
 	"encoding/hex"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -306,5 +310,210 @@ func TestParseHTTPHost_Basic(t *testing.T) {
 				t.Errorf("Expected port %d, got %d", tt.port, port)
 			}
 		})
+	}
+}
+
+func TestPipe_BasicDataTransfer(t *testing.T) {
+	// Create two connected pipes
+	clientConn, serverConn := net.Pipe()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	// Start piping from client to server
+	go Pipe(ctx, clientConn, serverConn, &wg)
+
+	// Write data to client
+	testData := []byte("Hello, World!")
+	go func() {
+		_, err := clientConn.Write(testData)
+		if err != nil {
+			t.Logf("Write error (expected after close): %v", err)
+		}
+	}()
+
+	// Read data from server
+	buf := make([]byte, len(testData))
+	n, err := serverConn.Read(buf)
+	if err != nil {
+		t.Fatalf("Failed to read from server: %v", err)
+	}
+
+	if string(buf[:n]) != string(testData) {
+		t.Errorf("Expected %q, got %q", string(testData), string(buf[:n]))
+	}
+
+	// Close connections and cancel context
+	clientConn.Close()
+	serverConn.Close()
+	cancel()
+	wg.Wait()
+}
+
+func TestPipe_ContextCancellation(t *testing.T) {
+	clientConn, serverConn := net.Pipe()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	// Start piping
+	go Pipe(ctx, clientConn, serverConn, &wg)
+
+	// Cancel context immediately
+	cancel()
+
+	// Wait for pipe to finish
+	wg.Wait()
+
+	// Close connections
+	clientConn.Close()
+	serverConn.Close()
+
+	// Verify connections are closed or in error state
+	_, err := clientConn.Write([]byte("test"))
+	if err == nil {
+		t.Error("Expected write to fail after context cancellation")
+	}
+}
+
+func TestConnectDirect_Success(t *testing.T) {
+	// Start a test server
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Failed to start test server: %v", err)
+	}
+	defer listener.Close()
+
+	// Accept connections in background
+	go func() {
+		conn, err := listener.Accept()
+		if err != nil {
+			return
+		}
+		conn.Close()
+	}()
+
+	// Test connection
+	host := "127.0.0.1"
+	port := listener.Addr().(*net.TCPAddr).Port
+
+	conn, err := ConnectDirect(host, port)
+	if err != nil {
+		t.Errorf("ConnectDirect failed: %v", err)
+		return
+	}
+	defer conn.Close()
+
+	if conn == nil {
+		t.Error("ConnectDirect returned nil connection")
+	}
+}
+
+func TestConnectDirect_InvalidHost(t *testing.T) {
+	conn, err := ConnectDirect("invalid-host-that-does-not-exist", 9999)
+	if err == nil {
+		conn.Close()
+		t.Error("Expected ConnectDirect to fail with invalid host")
+	}
+}
+
+func TestConnectViaProxy_Success(t *testing.T) {
+	// Start a mock proxy server
+	proxyListener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Failed to start mock proxy: %v", err)
+	}
+	defer proxyListener.Close()
+
+	// Start target server
+	targetListener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Failed to start target server: %v", err)
+	}
+	defer targetListener.Close()
+
+	// Mock proxy handler
+	go func() {
+		conn, err := proxyListener.Accept()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+
+		// Read CONNECT request
+		reader := bufio.NewReader(conn)
+		request, err := reader.ReadString('\n')
+		if err != nil {
+			return
+		}
+
+		// Verify it's a CONNECT request
+		if !strings.HasPrefix(request, "CONNECT") {
+			return
+		}
+
+		// Send successful response
+		response := "HTTP/1.1 200 Connection Established\r\n\r\n"
+		conn.Write([]byte(response))
+	}()
+
+	// Test proxy connection
+	proxyHost := "127.0.0.1"
+	proxyPort := proxyListener.Addr().(*net.TCPAddr).Port
+	targetHost := "example.com"
+	targetPort := 443
+	clientIP := "192.168.1.1"
+
+	conn, err := ConnectViaProxy(proxyHost, proxyPort, targetHost, targetPort, clientIP)
+	if err != nil {
+		t.Errorf("ConnectViaProxy failed: %v", err)
+		return
+	}
+	defer conn.Close()
+
+	if conn == nil {
+		t.Error("ConnectViaProxy returned nil connection")
+	}
+}
+
+func TestConnectViaProxy_ProxyError(t *testing.T) {
+	// Start a mock proxy that returns error
+	proxyListener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Failed to start mock proxy: %v", err)
+	}
+	defer proxyListener.Close()
+
+	go func() {
+		conn, err := proxyListener.Accept()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+
+		// Send error response
+		response := "HTTP/1.1 500 Internal Server Error\r\n\r\n"
+		conn.Write([]byte(response))
+	}()
+
+	proxyHost := "127.0.0.1"
+	proxyPort := proxyListener.Addr().(*net.TCPAddr).Port
+
+	conn, err := ConnectViaProxy(proxyHost, proxyPort, "example.com", 443, "192.168.1.1")
+	if err == nil {
+		conn.Close()
+		t.Error("Expected ConnectViaProxy to fail with proxy error")
+	}
+}
+
+func TestConnectViaProxy_InvalidProxy(t *testing.T) {
+	conn, err := ConnectViaProxy("invalid-proxy", 9999, "example.com", 443, "192.168.1.1")
+	if err == nil {
+		conn.Close()
+		t.Error("Expected ConnectViaProxy to fail with invalid proxy")
 	}
 }
