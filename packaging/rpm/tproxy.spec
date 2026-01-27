@@ -47,5 +47,5 @@ install -m 644 packaging/tproxy.service %{buildroot}/usr/lib/systemd/system/tpro
 %{_bindir}/systemctl daemon-reload >/dev/null 2>&1 || :
 
 %changelog
-* Mon Jan 27 2026 Andrey Urbanovich <andrey@urbanovich.net> - 1.0.0-1
+* Mon Jan 27 2025 Andrey Urbanovich <andrey@urbanovich.net> - 1.0.0-1
 - Initial package build

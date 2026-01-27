@@ -96,10 +96,14 @@ for ARCH in "${PACKAGE_ARCHS[@]}"; do
             cp packaging/rpm/tproxy.spec /tmp/rpm-build/SPECS/ && \
             # Update BuildArch in spec file
             sed -i \"s/BuildArch: x86_64/BuildArch: $RPMARCH/g\" /tmp/rpm-build/SPECS/tproxy.spec && \
-            cp build/tproxy-$ARCH /tmp/rpm-build/BUILD/ && \
-            cp proxy_config.yaml /tmp/rpm-build/BUILD/ && \
-            cp README.md /tmp/rpm-build/BUILD/ && \
-            cp packaging/tproxy.service /tmp/rpm-build/BUILD/ && \
+            # Create source tarball
+            mkdir -p /tmp/tproxy-1.0.0 && \
+            cp build/tproxy-$ARCH /tmp/tproxy-1.0.0/tproxy && \
+            cp proxy_config.yaml /tmp/tproxy-1.0.0/ && \
+            cp README.md /tmp/tproxy-1.0.0/ && \
+            cp packaging/tproxy.service /tmp/tproxy-1.0.0/ && \
+            cd /tmp && \
+            tar -czf /tmp/rpm-build/SOURCES/tproxy-1.0.0.tar.gz tproxy-1.0.0 && \
             cd /tmp/rpm-build && \
             rpmbuild -bb --define \"_topdir /tmp/rpm-build\" --target $RPMARCH SPECS/tproxy.spec && \
             cp RPMS/$RPMARCH/*.rpm /app/$OUTPUT_DIR/rpm/
