@@ -91,8 +91,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: rpm-package-${{ matrix.arch }}
-          path: build/packages/rpm/tproxy-*.rpm
+          path: build/packages/rpm/tproxy-*${{ matrix.arch == 'amd64' && 'x86_64' || 'aarch64' }}.rpm
           retention-days: 30
+          if-no-files-found: ignore
 
   build-docker:
     name: Build and Push Docker Images

@@ -84,6 +84,8 @@ for ARCH in "${PACKAGE_ARCHS[@]}"; do
     echo "✓ DEB package built: $OUTPUT_DIR/deb/tproxy_${ARCH}.deb"
     
     # Build RPM package using minimal Fedora image
+    # Note: RPM cross-compilation is complex, so we only build for native architecture
+    # For arm64, we need to use an arm64 Fedora image, which requires QEMU setup
     if [ "$ARCH" = "amd64" ]; then
         echo "Building RPM package for $ARCH using minimal Fedora image..."
         docker run --rm \
@@ -96,6 +98,8 @@ for ARCH in "${PACKAGE_ARCHS[@]}"; do
                 dnf install -y --setopt=install_weak_deps=False rpm-build sed && \
                 mkdir -p /tmp/rpm-build/{BUILD,RPMS,SOURCES,SPECS,SRPMS} && \
                 cp packaging/rpm/tproxy.spec /tmp/rpm-build/SPECS/ && \
+                # Update BuildArch in spec file for current architecture
+                sed -i \"s/BuildArch: x86_64/BuildArch: $RPMARCH/g\" /tmp/rpm-build/SPECS/tproxy.spec && \
                 # Create source tarball
                 mkdir -p /tmp/tproxy-1.0.0 && \
                 cp build/tproxy-$ARCH /tmp/tproxy-1.0.0/tproxy && \
@@ -106,12 +110,13 @@ for ARCH in "${PACKAGE_ARCHS[@]}"; do
                 tar -czf /tmp/rpm-build/SOURCES/tproxy-1.0.0.tar.gz tproxy-1.0.0 && \
                 cd /tmp/rpm-build && \
                 rpmbuild -bb --define \"_topdir /tmp/rpm-build\" --define \"debug_package %{nil}\" --define \"_build_id_links none\" SPECS/tproxy.spec && \
-                cp RPMS/x86_64/*.rpm /app/$OUTPUT_DIR/rpm/
+                cp RPMS/$RPMARCH/*.rpm /app/$OUTPUT_DIR/rpm/
             "
         
-        echo "✓ RPM package built: $OUTPUT_DIR/rpm/tproxy-*x86_64.rpm"
+        echo "✓ RPM package built: $OUTPUT_DIR/rpm/tproxy-*$RPMARCH.rpm"
     else
-        echo "⚠ Skipping RPM package for $ARCH (cross-compilation not supported)"
+        echo "⚠ Skipping RPM package for $ARCH (cross-compilation not supported in this setup)"
+        echo "   For arm64 RPM packages, use a native arm64 build environment or GitHub Actions"
     fi
 done
 
