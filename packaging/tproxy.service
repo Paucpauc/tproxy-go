@@ -1,0 +1,30 @@
+[Unit]
+Description=Transparent HTTP/HTTPS Proxy Server
+Documentation=https://github.com/Paucpauc/tproxy-go/
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=tproxy
+Group=tproxy
+ExecStart=/usr/bin/tproxy -config /etc/tproxy/proxy_config.yaml
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=65536
+
+# Security settings
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/etc/tproxy /var/log/tproxy
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=tproxy
+
+[Install]
+WantedBy=multi-user.target

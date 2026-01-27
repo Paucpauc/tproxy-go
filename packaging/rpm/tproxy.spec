@@ -25,11 +25,26 @@ install -m 755 tproxy %{buildroot}/usr/bin/tproxy
 mkdir -p %{buildroot}/etc/tproxy
 install -m 644 proxy_config.yaml %{buildroot}/etc/tproxy/
 
+mkdir -p %{buildroot}/usr/lib/systemd/system
+install -m 644 packaging/tproxy.service %{buildroot}/usr/lib/systemd/system/tproxy.service
+
 %files
 /usr/bin/tproxy
 /etc/tproxy/proxy_config.yaml
+/usr/lib/systemd/system/tproxy.service
 
 %doc README.md
+
+%post
+%{_bindir}/systemctl daemon-reload >/dev/null 2>&1 || :
+%{_bindir}/systemctl enable tproxy.service >/dev/null 2>&1 || :
+
+%preun
+%{_bindir}/systemctl --no-reload disable tproxy.service >/dev/null 2>&1 || :
+%{_bindir}/systemctl stop tproxy.service >/dev/null 2>&1 || :
+
+%postun
+%{_bindir}/systemctl daemon-reload >/dev/null 2>&1 || :
 
 %changelog
 * Mon Jan 27 2026 Andrey Urbanovich <andrey@urbanovich.net> - 1.0.0-1

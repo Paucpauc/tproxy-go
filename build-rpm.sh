@@ -55,10 +55,11 @@ mkdir -p "$RPM_BUILD_DIR/RPMS"
 cp "$RPM_BUILD_DIR/tproxy-$ARCH" "$RPM_BUILD_DIR/SOURCES/tproxy"
 cp proxy_config.yaml "$RPM_BUILD_DIR/SOURCES/"
 cp README.md "$RPM_BUILD_DIR/SOURCES/"
+cp packaging/tproxy.service "$RPM_BUILD_DIR/SOURCES/"
 
 # Create tarball for RPM build
 cd "$RPM_BUILD_DIR/SOURCES"
-tar -czf tproxy-1.0.0.tar.gz tproxy proxy_config.yaml README.md
+tar -czf tproxy-1.0.0.tar.gz tproxy proxy_config.yaml README.md tproxy.service
 cd -
 
 # Create spec file
@@ -91,15 +92,31 @@ install -m 755 %{_builddir}/tproxy %{buildroot}/usr/bin/tproxy
 mkdir -p %{buildroot}/etc/tproxy
 install -m 644 proxy_config.yaml %{buildroot}/etc/tproxy/
 
+mkdir -p %{buildroot}/usr/lib/systemd/system
+install -m 644 tproxy.service %{buildroot}/usr/lib/systemd/system/tproxy.service
+
 %files
 /usr/bin/tproxy
 /etc/tproxy/proxy_config.yaml
+/usr/lib/systemd/system/tproxy.service
 
 %doc README.md
+
+%post
+%{_bindir}/systemctl daemon-reload >/dev/null 2>&1 || :
+%{_bindir}/systemctl enable tproxy.service >/dev/null 2>&1 || :
+
+%preun
+%{_bindir}/systemctl --no-reload disable tproxy.service >/dev/null 2>&1 || :
+%{_bindir}/systemctl stop tproxy.service >/dev/null 2>&1 || :
+
+%postun
+%{_bindir}/systemctl daemon-reload >/dev/null 2>&1 || :
 
 %changelog
 * Mon Jan 27 2026 Andrey Urbanovich <andrey@urbanovich.net> - 1.0.0-1
 - Initial package build
+- Added systemd service support
 EOF
 
 # Build RPM package using Docker

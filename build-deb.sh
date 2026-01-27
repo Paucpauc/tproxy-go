@@ -50,6 +50,7 @@ mkdir -p "$DEB_BUILD_DIR/DEBIAN"
 mkdir -p "$DEB_BUILD_DIR/usr/bin"
 mkdir -p "$DEB_BUILD_DIR/etc/tproxy"
 mkdir -p "$DEB_BUILD_DIR/usr/share/doc/tproxy"
+mkdir -p "$DEB_BUILD_DIR/lib/systemd/system"
 
 # Copy binary
 cp "$DEB_BUILD_DIR/tproxy-$ARCH" "$DEB_BUILD_DIR/usr/bin/tproxy"
@@ -74,18 +75,17 @@ Homepage: https://github.com/Paucpauc/tproxy-go/
 Description: Transparent HTTP/HTTPS Proxy Server
  A Go implementation of a transparent HTTP/HTTPS proxy server with configurable routing rules.
  The proxy extracts SNI from TLS connections and routes traffic to upstream proxies using domain names.
-Depends: libc6
+Depends: libc6, adduser
 EOF
 
-# Create postinst script
-cat > "$DEB_BUILD_DIR/DEBIAN/postinst" << 'EOF'
-#!/bin/bash
-chmod 755 /usr/bin/tproxy
-echo "tproxy installed successfully"
-echo "Configuration file: /etc/tproxy/proxy_config.yaml"
-echo "Usage: tproxy --config /etc/tproxy/proxy_config.yaml"
-EOF
-chmod 755 "$DEB_BUILD_DIR/DEBIAN/postinst"
+# Copy systemd service file
+cp packaging/tproxy.service "$DEB_BUILD_DIR/lib/systemd/system/"
+chmod 644 "$DEB_BUILD_DIR/lib/systemd/system/tproxy.service"
+
+# Copy post-install scripts
+cp packaging/deb/postinst "$DEB_BUILD_DIR/DEBIAN/postinst"
+cp packaging/deb/prerm "$DEB_BUILD_DIR/DEBIAN/prerm"
+chmod 755 "$DEB_BUILD_DIR/DEBIAN/postinst" "$DEB_BUILD_DIR/DEBIAN/prerm"
 
 # Build DEB package using Docker
 echo "Building DEB package using Docker..."

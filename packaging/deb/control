@@ -8,4 +8,4 @@ Homepage: https://github.com/Paucpauc/tproxy-go/
 Description: Transparent HTTP/HTTPS Proxy Server
  A Go implementation of a transparent HTTP/HTTPS proxy server with configurable routing rules.
  The proxy extracts SNI from TLS connections and routes traffic to upstream proxies using domain names.
-Depends: libc6
+Depends: libc6, adduser
