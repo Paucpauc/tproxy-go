@@ -78,34 +78,59 @@ The project now supports building for multiple architectures:
 
 ### Build Options
 
-1. **Build for current architecture only**:
+#### Docker-Based Builds (Recommended - No Local Go Required)
+
+1. **Build binary for current architecture using Docker**:
+   ```bash
+   make docker-build
+   # or
+   ./docker-build-binary.sh
+   ```
+
+2. **Build binaries for all architectures using Docker**:
+   ```bash
+   make docker-build-all
+   # or
+   ./docker-build-all-binary.sh
+   ```
+
+3. **Build for specific architecture using Docker**:
+   ```bash
+   ./docker-build-binary.sh arm    # For Mikrotik HAP AC2
+   ./docker-build-binary.sh amd64  # For x64 systems
+   ./docker-build-binary.sh arm64  # For ARM64 systems
+   ```
+
+4. **Build packages using Docker (no local tools required)**:
+   ```bash
+   make docker-packages
+   # or
+   ./docker-build-packages.sh
+   ```
+
+#### Traditional Builds (Requires Local Go Installation)
+
+5. **Build for current architecture using local Go**:
    ```bash
    make build
    # or
    ./build.sh
    ```
 
-2. **Build for all architectures**:
+6. **Build for all architectures using local Go**:
    ```bash
    make build-all
    # or
    ./build-all.sh
    ```
 
-3. **Build for specific architecture**:
-   ```bash
-   ./build.sh arm    # For Mikrotik HAP AC2
-   ./build.sh amd64  # For x64 systems
-   ./build.sh arm64  # For ARM64 systems
-   ```
-
-4. **Build Docker images**:
+7. **Build Docker images**:
    ```bash
    make docker-all   # Build Docker images for all architectures
    make docker-push  # Build and push to registry
    ```
 
-5. **Build DEB/RPM packages**:
+8. **Build DEB/RPM packages using local tools**:
    ```bash
    make packages     # Build packages for current architecture
    make packages-all # Build packages for all architectures
@@ -183,16 +208,34 @@ To modify or extend the proxy:
 
 ### Build System
 
-The build system supports cross-compilation for multiple architectures:
+The build system supports cross-compilation for multiple architectures with Docker-based builds:
 
-- **Dockerfile**: Updated with `TARGETARCH` and `TARGETVARIANT` support
+- **Docker-Based Builds**: No local Go installation required, uses official Go Docker images
+- **Multi-Architecture Support**: Builds for amd64, arm64, and arm (ARMv7) architectures
+- **Dockerfile**: Multi-stage build with `TARGETARCH` and `TARGETVARIANT` support
 - **Build scripts**: Handle architecture-specific compilation flags
-- **Makefile**: Provides convenient build targets
-- **Package builds**: DEB and RPM packages for amd64 and arm64 architectures
+- **Makefile**: Provides convenient build targets for both Docker and local builds
+- **Package builds**: DEB and RPM packages for amd64 and arm64 architectures using Docker containers
 
 ### Package Building
 
-The project supports building DEB and RPM packages using Docker containers:
+The project supports building DEB and RPM packages using both Docker containers and local tools:
+
+#### Docker-Based Package Building (Recommended)
+
+Build packages without installing any build tools locally:
+
+```bash
+# Build all packages using Docker
+make docker-packages
+
+# Or directly
+./docker-build-packages.sh
+```
+
+#### Traditional Package Building
+
+Build packages using locally installed tools:
 
 #### DEB Packages (Debian/Ubuntu)
 ```bash
@@ -220,7 +263,10 @@ The project supports building DEB and RPM packages using Docker containers:
 
 #### All Packages
 ```bash
-# Build all packages for all architectures
+# Build all packages for all architectures using Docker
+./docker-build-packages.sh
+
+# Build all packages for all architectures using local tools
 ./build-packages.sh
 ```
 

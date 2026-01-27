@@ -1,4 +1,4 @@
-# Makefile for tproxy - Multi-architecture builds
+# Makefile for tproxy - Multi-architecture builds with Docker support
 
 # Variables
 BINARY_NAME = tproxy
@@ -9,20 +9,30 @@ TAG = latest
 # Supported architectures
 ARCHS = amd64 arm64 arm
 
-.PHONY: all build build-all docker docker-all packages packages-all clean help
+.PHONY: all build build-all docker-build docker-build-all docker docker-all packages packages-all docker-packages clean help
 
-# Default target
-all: build
+# Default target - use Docker-based build
+all: docker-build
 
-# Build for current architecture only
+# Build for current architecture only (using local Go)
 build:
-	@echo "Building for current architecture..."
+	@echo "Building for current architecture using local Go..."
 	@./build.sh
 
-# Build for all architectures
+# Build for all architectures (using local Go)
 build-all:
-	@echo "Building for all architectures..."
+	@echo "Building for all architectures using local Go..."
 	@./build-all.sh
+
+# Build binary for current architecture using Docker (no local Go required)
+docker-build:
+	@echo "Building for current architecture using Docker..."
+	@./docker-build-binary.sh
+
+# Build binaries for all architectures using Docker (no local Go required)
+docker-build-all:
+	@echo "Building for all architectures using Docker..."
+	@./docker-build-all-binary.sh
 
 # Build Docker image for current architecture
 docker:
@@ -50,6 +60,11 @@ packages-all:
 	@echo "Building packages for all architectures..."
 	@./build-packages.sh
 
+# Build packages for all architectures using Docker (no local tools required)
+docker-packages:
+	@echo "Building packages for all architectures using Docker..."
+	@./docker-build-packages.sh
+
 # Clean build artifacts
 clean:
 	@echo "Cleaning build artifacts..."
@@ -59,15 +74,18 @@ clean:
 # Show help
 help:
 	@echo "Available targets:"
-	@echo "  build       - Build for current architecture"
-	@echo "  build-all   - Build for all architectures (amd64, arm64, arm)"
-	@echo "  docker      - Build Docker image for current architecture"
-	@echo "  docker-all  - Build Docker images for all architectures"
-	@echo "  docker-push - Build and push Docker images for all architectures"
-	@echo "  packages    - Build DEB/RPM packages for current architecture"
-	@echo "  packages-all - Build DEB/RPM packages for all architectures"
-	@echo "  clean       - Clean build artifacts"
-	@echo "  help        - Show this help message"
+	@echo "  build           - Build for current architecture using local Go"
+	@echo "  build-all       - Build for all architectures using local Go"
+	@echo "  docker-build    - Build for current architecture using Docker (no local Go)"
+	@echo "  docker-build-all - Build for all architectures using Docker (no local Go)"
+	@echo "  docker          - Build Docker image for current architecture"
+	@echo "  docker-all      - Build Docker images for all architectures"
+	@echo "  docker-push     - Build and push Docker images for all architectures"
+	@echo "  packages        - Build DEB/RPM packages for current architecture"
+	@echo "  packages-all    - Build DEB/RPM packages for all architectures"
+	@echo "  docker-packages - Build DEB/RPM packages using Docker (no local tools)"
+	@echo "  clean           - Clean build artifacts"
+	@echo "  help            - Show this help message"
 	@echo ""
 	@echo "Architecture support:"
 	@echo "  - amd64: x64 systems"
@@ -79,7 +97,8 @@ help:
 	@echo "  - RPM packages: amd64, arm64"
 	@echo ""
 	@echo "Usage examples:"
-	@echo "  make build-all          # Build binaries for all architectures"
-	@echo "  make docker-all         # Build Docker images for all architectures"
-	@echo "  make packages-all       # Build DEB/RPM packages for all architectures"
-	@echo "  ./build.sh arm          # Build specifically for ARM"
+	@echo "  make docker-build-all    # Build binaries for all architectures using Docker"
+	@echo "  make docker-all          # Build Docker images for all architectures"
+	@echo "  make docker-packages     # Build packages using Docker (no local tools)"
+	@echo "  make packages-all        # Build DEB/RPM packages for all architectures"
+	@echo "  ./docker-build-binary.sh arm  # Build specifically for ARM using Docker"
