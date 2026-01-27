@@ -2,7 +2,57 @@
 
 This is a Go implementation of a transparent HTTP/HTTPS proxy server with configurable routing rules. The proxy is unique in its ability to extract SNI (Server Name Indication) from TLS connections and route traffic to upstream proxies using domain names instead of IP addresses, unlike traditional proxies.
 
-## Features
+## 📚 Documentation
+
+**Complete documentation is now available:**
+
+- **[WIKI.md](WIKI.md)** - Comprehensive documentation with installation guides, configuration examples, and advanced usage
+- **[QUICK_START.md](QUICK_START.md)** - Quick start guide for immediate deployment
+- **[CONFIGURATION.md](CONFIGURATION.md)** - Detailed configuration reference and examples
+
+## 🚀 Quick Start
+
+### Installation Options
+
+1. **DEB Package (Debian/Ubuntu)**:
+   ```bash
+   wget https://github.com/Paucpauc/tproxy-go/releases/latest/download/tproxy_1.0.0_amd64.deb
+   sudo dpkg -i tproxy_1.0.0_amd64.deb
+   ```
+
+2. **RPM Package (CentOS/RHEL/Fedora)**:
+   ```bash
+   wget https://github.com/Paucpauc/tproxy-go/releases/latest/download/tproxy-1.0.0-1.x86_64.rpm
+   sudo rpm -i tproxy-1.0.0-1.x86_64.rpm
+   ```
+
+3. **Docker**:
+   ```bash
+   docker run -d --name tproxy --network host ghcr.io/paucpauc/tproxy:latest
+   ```
+
+4. **Mikrotik Container**:
+   ```bash
+   /container add remote-image=ghcr.io/paucpauc/tproxy:latest-arm
+   ```
+
+### Basic Configuration
+
+Create `/etc/tproxy/proxy_config.yaml`:
+```yaml
+listen:
+  host: "127.0.0.1"
+  https_port: 3130
+  http_port: 3131
+
+rules:
+  - pattern: ".*\\.google\\.com"
+    proxy: "DIRECT"
+  - pattern: ".*"
+    proxy: "proxy.example.com:8080"
+```
+
+## ✨ Features
 
 - **Transparent Proxy**: Intercepts traffic transparently without client configuration
 - **SNI Extraction**: Extracts domain names from TLS handshakes for intelligent routing
@@ -12,145 +62,108 @@ This is a Go implementation of a transparent HTTP/HTTPS proxy server with config
 - **Configurable Routing**: YAML-based configuration for proxy rules
 - **Multiple Backends**: Support for direct connections, proxy chains, and connection dropping
 - **Asynchronous**: Concurrent connection handling using Go's goroutines
+- **Multi-Architecture**: Builds for amd64, arm64, and arm (ARMv7) architectures
 
-## Project Structure
+## 🏗️ Build System
 
-```
-tproxy/
-├── cmd/
-│   └── tproxy/
-│       └── main.go          # Main application entry point
-├── internal/
-│   ├── config/
-│   │   └── config.go        # Configuration types and loading
-│   ├── proxy/
-│   │   ├── proxy.go         # Proxy connection handling
-│   │   ├── sni.go           # SNI parsing logic
-│   │   ├── http.go          # HTTP parsing logic
-│   │   └── proxy_test.go    # Proxy functionality tests
-│   └── server/
-│       ├── server.go        # HTTP/HTTPS server implementation
-│       └── handler.go       # Connection handlers
-├── tests/                   # Test data
-├── go.mod                   # Go module definition
-├── proxy_config.yaml        # Configuration file
-├── Dockerfile              # Multi-architecture Docker build
-├── Makefile                # Build automation
-├── build.sh                # Single architecture build script
-├── build-all.sh            # Multi-architecture build script
-└── README.md               # Documentation
+The project supports multiple build methods:
+
+### Docker-Based Builds (Recommended - No Local Tools Required)
+```bash
+# Build binaries for all architectures
+make docker-build-all
+
+# Build packages for all architectures
+make docker-packages
+
+# Build and push Docker images
+make docker-push
 ```
 
-## Configuration
+### Traditional Builds (Requires Local Go Installation)
+```bash
+# Build for current architecture
+make build
 
-The proxy uses a YAML configuration file. Example `proxy_config.yaml`:
+# Build for all architectures
+make build-all
 
+# Build packages
+make packages
+```
+
+## 📦 Supported Platforms
+
+| Platform | Architecture | Package Type | Container Support |
+|----------|--------------|--------------|-------------------|
+| Debian/Ubuntu | amd64, arm64 | DEB | ✅ |
+| CentOS/RHEL/Fedora | amd64, arm64 | RPM | ✅ |
+| Generic Linux | amd64, arm64, arm | Binary | ✅ |
+| Mikrotik RouterOS | arm (ARMv7) | Binary/Container | ✅ |
+| Docker | Multi-arch | Image | ✅ |
+
+## 🔧 Configuration
+
+### Rule Patterns
+- `DIRECT`: Connect directly to the target
+- `DROP`: Block the connection
+- `proxy_host:port`: Route through the specified proxy server
+
+### Example Configuration
 ```yaml
-listen:
-  host: "127.0.0.1"
-  https_port: 3130
-  http_port: 3131
-
 rules:
-  - pattern: ".*\.google\.com"
+  - pattern: ".*\\.internal\\.com"
     proxy: "DIRECT"
-  - pattern: ".*\.yandex\.ru"
+  - pattern: ".*\\.google\\.com"
     proxy: "DIRECT"
-  - pattern: ".*\.internal\.com"
+  - pattern: ".*\\.blocked\\.com"
     proxy: "DROP"
   - pattern: ".*"
     proxy: "proxy.example.com:8080"
 ```
 
-### Rule Patterns
+## 🐳 Docker Deployment
 
-- `DIRECT`: Connect directly to the target
-- `DROP`: Block the connection
-- `proxy_host:port`: Route through the specified proxy server
+### Basic Docker Usage
+```bash
+# Run with default configuration
+docker run -d --name tproxy --network host ghcr.io/paucpauc/tproxy:latest
 
-## Multi-Architecture Builds
+# Run with custom configuration
+docker run -d --name tproxy --network host \
+  -v /path/to/config.yaml:/proxy_config.yaml \
+  ghcr.io/paucpauc/tproxy:latest
+```
 
-The project now supports building for multiple architectures:
+### Docker Compose
+```yaml
+version: '3.8'
+services:
+  tproxy:
+    image: ghcr.io/paucpauc/tproxy:latest
+    network_mode: host
+    volumes:
+      - ./config:/etc/tproxy
+    restart: unless-stopped
+```
 
-- **amd64**: x64 systems
-- **arm64**: ARM64 systems
-- **arm**: ARMv7 (for Mikrotik HAP AC2 routers)
+## 🔍 Transparent Proxy Setup
 
-### Build Options
-
-#### Docker-Based Builds (Recommended - No Local Go Required)
-
-1. **Build binary for current architecture using Docker**:
-   ```bash
-   make docker-build
-   # or
-   ./docker-build-binary.sh
-   ```
-
-2. **Build binaries for all architectures using Docker**:
-   ```bash
-   make docker-build-all
-   # or
-   ./docker-build-all-binary.sh
-   ```
-
-3. **Build for specific architecture using Docker**:
-   ```bash
-   ./docker-build-binary.sh arm    # For Mikrotik HAP AC2
-   ./docker-build-binary.sh amd64  # For x64 systems
-   ./docker-build-binary.sh arm64  # For ARM64 systems
-   ```
-
-4. **Build packages using Docker (no local tools required)**:
-   ```bash
-   make docker-packages
-   # or
-   ./docker-build-packages.sh
-   ```
-
-#### Traditional Builds (Requires Local Go Installation)
-
-5. **Build for current architecture using local Go**:
-   ```bash
-   make build
-   # or
-   ./build.sh
-   ```
-
-6. **Build for all architectures using local Go**:
-   ```bash
-   make build-all
-   # or
-   ./build-all.sh
-   ```
-
-7. **Build Docker images**:
-   ```bash
-   make docker-all   # Build Docker images for all architectures
-   make docker-push  # Build and push to registry
-   ```
-
-8. **Build DEB/RPM packages using local tools**:
-   ```bash
-   make packages     # Build packages for current architecture
-   make packages-all # Build packages for all architectures
-   ```
-
-### Transparent Proxy Setup
-
-To use this proxy in transparent mode, configure iptables rules to redirect traffic:
+To use this proxy in transparent mode, configure iptables rules:
 
 ```bash
 # Redirect HTTPS traffic (port 443) to SNI proxy
-iptables -t nat -I PREROUTING -s $srcip -p tcp -m tcp --dport 443 -j DNAT --to-destination 127.0.0.1:3130 -m comment --comment "SNI-PROXY"
+iptables -t nat -I PREROUTING -p tcp --dport 443 \
+  -j DNAT --to-destination 127.0.0.1:3130
 
 # Redirect HTTP traffic (port 80) to HTTP proxy
-iptables -t nat -I PREROUTING -s $srcip -p tcp -m tcp --dport 80 -j DNAT --to-destination 127.0.0.1:3131 -m comment --comment "SNI-PROXY"
+iptables -t nat -I PREROUTING -p tcp --dport 80 \
+  -j DNAT --to-destination 127.0.0.1:3131
 ```
 
 **Key Advantage**: Unlike traditional transparent proxies that route based on IP addresses, this proxy extracts the SNI from TLS handshakes and uses the actual domain name when connecting to upstream proxies, providing more accurate routing and better compatibility with modern web services.
 
-### Usage
+## 📖 Usage
 
 1. **Run with default configuration**:
    ```bash
@@ -167,133 +180,55 @@ iptables -t nat -I PREROUTING -s $srcip -p tcp -m tcp --dport 80 -j DNAT --to-de
    ./build/tproxy-arm --config proxy_config.yaml
    ```
 
-## API Comparison with Python Version
-
-| Feature | Python tproxy.py | Go tproxy |
-|---------|------------------|-----------|
-| HTTP Proxy | ✅ | ✅ |
-| HTTPS Proxy with SNI | ✅ | ✅ |
-| YAML Configuration | ✅ | ✅ |
-| Proxy Routing Rules | ✅ | ✅ |
-| Direct Connections | ✅ | ✅ |
-| Proxy Chains | ✅ | ✅ |
-| Connection Dropping | ✅ | ✅ |
-| Asynchronous | asyncio | goroutines |
-
-## Key Differences
-
-1. **Transparent Operation**: Unlike standard proxies, this operates transparently without client-side proxy configuration
-2. **Domain-Based Upstream Routing**: Routes to upstream proxies using domain names extracted from SNI, not IP addresses
-3. **Platform Support**: The Go version doesn't implement Linux-specific `SO_ORIGINAL_DST` functionality
-4. **SNI Parsing**: Uses custom SNI parsing instead of Python's ssl library
-5. **Concurrency**: Uses Go's native goroutines instead of asyncio
-6. **Error Handling**: Go's error handling patterns vs Python exceptions
-
-## Limitations
-
-- SNI parsing is simplified and may not handle all TLS handshake variations
-- IPv6 support in proxy addresses is basic
-- No support for authentication in proxy connections
-- Limited error recovery and logging compared to production-grade proxies
-- Requires iptables configuration for transparent proxy operation
-
-## Development
-
-To modify or extend the proxy:
-
-1. **Add new proxy types**: Modify `ProxyAction` struct and connection logic
-2. **Enhance SNI parsing**: Improve the `parseSNI` function in `proxy.go`
-3. **Add authentication**: Extend proxy connection functions
-4. **Improve logging**: Add structured logging with levels
-
-### Build System
-
-The build system supports cross-compilation for multiple architectures with Docker-based builds:
-
-- **Docker-Based Builds**: No local Go installation required, uses official Go Docker images
-- **Multi-Architecture Support**: Builds for amd64, arm64, and arm (ARMv7) architectures
-- **Dockerfile**: Multi-stage build with `TARGETARCH` and `TARGETVARIANT` support
-- **Build scripts**: Handle architecture-specific compilation flags
-- **Makefile**: Provides convenient build targets for both Docker and local builds
-- **Package builds**: DEB and RPM packages for amd64 and arm64 architectures using Docker containers
-
-### Package Building
-
-The project supports building DEB and RPM packages using both Docker containers and local tools:
-
-#### Docker-Based Package Building (Recommended)
-
-Build packages without installing any build tools locally:
+## 🧪 Testing
 
 ```bash
-# Build all packages using Docker
-make docker-packages
+# Run tests using local Go
+make test
 
-# Or directly
-./docker-build-packages.sh
+# Run tests using Docker
+make docker-test
+
+# Run comprehensive tests
+make test-all
 ```
 
-#### Traditional Package Building
+## 📊 Project Structure
 
-Build packages using locally installed tools:
-
-#### DEB Packages (Debian/Ubuntu)
-```bash
-# Build for current architecture
-./build-deb.sh
-
-# Build for specific architecture
-./build-deb.sh amd64
-./build-deb.sh arm64
-
-# Packages are created in build/packages/deb/
+```
+tproxy-go/
+├── cmd/tproxy/          # Main application entry point
+├── internal/
+│   ├── config/          # Configuration loading and parsing
+│   ├── proxy/           # Proxy connection handling
+│   └── server/          # HTTP/HTTPS server implementation
+├── packaging/           # DEB and RPM package definitions
+├── tests/               # Test data files
+├── WIKI.md             # Comprehensive documentation
+├── QUICK_START.md      # Quick start guide
+└── CONFIGURATION.md    # Configuration reference
 ```
 
-#### RPM Packages (CentOS/RHEL/Fedora)
-```bash
-# Build for current architecture
-./build-rpm.sh
+## 🤝 Contributing
 
-# Build for specific architecture
-./build-rpm.sh amd64
-./build-rpm.sh arm64
+1. Fork the repository
+2. Create a feature branch
+3. Make changes with tests
+4. Submit a pull request
+5. Ensure all tests pass
 
-# Packages are created in build/packages/rpm/
-```
-
-#### All Packages
-```bash
-# Build all packages for all architectures using Docker
-./docker-build-packages.sh
-
-# Build all packages for all architectures using local tools
-./build-packages.sh
-```
-
-Package contents:
-- Binary: `/usr/bin/tproxy`
-- Configuration: `/etc/tproxy/proxy_config.yaml`
-- Documentation: `/usr/share/doc/tproxy/README.md`
-
-### Project Structure
-
-The project follows standard Go conventions:
-
-- **cmd/tproxy/**: Contains the main application entry point
-- **internal/**: Contains application-specific packages not intended for external use
-  - **config/**: Configuration loading and parsing
-  - **proxy/**: Proxy connection handling and protocol parsing
-  - **server/**: HTTP/HTTPS server implementation
-- **tests/**: Test data files
-
-## Testing
-
-Basic functionality can be tested by:
-
-1. Starting the proxy server
-2. Configuring a browser or HTTP client to use the proxy
-3. Testing different domains to verify routing rules
-
-## License
+## 📄 License
 
 This project is provided as-is for educational and development purposes.
+
+## 📞 Support
+
+- **Issues**: [GitHub Issues](https://github.com/Paucpauc/tproxy-go/issues)
+- **Documentation**: [WIKI.md](WIKI.md)
+- **Releases**: [GitHub Releases](https://github.com/Paucpauc/tproxy-go/releases)
+
+---
+
+*For detailed documentation, see [WIKI.md](WIKI.md)*  
+*For quick setup, see [QUICK_START.md](QUICK_START.md)*  
+*For configuration details, see [CONFIGURATION.md](CONFIGURATION.md)*
