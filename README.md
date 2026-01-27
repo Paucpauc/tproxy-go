@@ -1,9 +1,12 @@
-# Go TProxy - HTTP/HTTPS Proxy Server
+# Go TProxy - Transparent HTTP/HTTPS Proxy Server
 
-This is a Go implementation of the Python `tproxy.py` script, providing an asynchronous HTTP/HTTPS proxy server with configurable routing rules.
+This is a Go implementation of a transparent HTTP/HTTPS proxy server with configurable routing rules. The proxy is unique in its ability to extract SNI (Server Name Indication) from TLS connections and route traffic to upstream proxies using domain names instead of IP addresses, unlike traditional proxies.
 
 ## Features
 
+- **Transparent Proxy**: Intercepts traffic transparently without client configuration
+- **SNI Extraction**: Extracts domain names from TLS handshakes for intelligent routing
+- **Domain-Based Routing**: Routes to upstream proxies using domain names instead of IP addresses
 - **HTTP Proxy**: Parses Host headers to determine routing
 - **HTTPS Proxy**: Uses SNI (Server Name Indication) parsing for TLS connections
 - **Configurable Routing**: YAML-based configuration for proxy rules
@@ -102,6 +105,20 @@ The project now supports building for multiple architectures:
    make docker-push  # Build and push to registry
    ```
 
+### Transparent Proxy Setup
+
+To use this proxy in transparent mode, configure iptables rules to redirect traffic:
+
+```bash
+# Redirect HTTPS traffic (port 443) to SNI proxy
+iptables -t nat -I PREROUTING -s $srcip -p tcp -m tcp --dport 443 -j DNAT --to-destination 127.0.0.1:3130 -m comment --comment "SNI-PROXY"
+
+# Redirect HTTP traffic (port 80) to HTTP proxy
+iptables -t nat -I PREROUTING -s $srcip -p tcp -m tcp --dport 80 -j DNAT --to-destination 127.0.0.1:3131 -m comment --comment "SNI-PROXY"
+```
+
+**Key Advantage**: Unlike traditional transparent proxies that route based on IP addresses, this proxy extracts the SNI from TLS handshakes and uses the actual domain name when connecting to upstream proxies, providing more accurate routing and better compatibility with modern web services.
+
 ### Usage
 
 1. **Run with default configuration**:
@@ -134,10 +151,12 @@ The project now supports building for multiple architectures:
 
 ## Key Differences
 
-1. **Platform Support**: The Go version doesn't implement Linux-specific `SO_ORIGINAL_DST` functionality
-2. **SNI Parsing**: Uses custom SNI parsing instead of Python's ssl library
-3. **Concurrency**: Uses Go's native goroutines instead of asyncio
-4. **Error Handling**: Go's error handling patterns vs Python exceptions
+1. **Transparent Operation**: Unlike standard proxies, this operates transparently without client-side proxy configuration
+2. **Domain-Based Upstream Routing**: Routes to upstream proxies using domain names extracted from SNI, not IP addresses
+3. **Platform Support**: The Go version doesn't implement Linux-specific `SO_ORIGINAL_DST` functionality
+4. **SNI Parsing**: Uses custom SNI parsing instead of Python's ssl library
+5. **Concurrency**: Uses Go's native goroutines instead of asyncio
+6. **Error Handling**: Go's error handling patterns vs Python exceptions
 
 ## Limitations
 
@@ -145,6 +164,7 @@ The project now supports building for multiple architectures:
 - IPv6 support in proxy addresses is basic
 - No support for authentication in proxy connections
 - Limited error recovery and logging compared to production-grade proxies
+- Requires iptables configuration for transparent proxy operation
 
 ## Development
 
