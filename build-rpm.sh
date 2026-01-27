@@ -68,7 +68,7 @@ Version: 1.0.0
 Release: 1%{?dist}
 Summary: Transparent HTTP/HTTPS Proxy Server
 License: MIT
-URL: https://github.com/example/tproxy
+URL: https://github.com/Paucpauc/tproxy-go/
 Source0: tproxy-1.0.0.tar.gz
 
 BuildArch: $RPM_ARCH
@@ -98,7 +98,7 @@ install -m 644 proxy_config.yaml %{buildroot}/etc/tproxy/
 %doc README.md
 
 %changelog
-* Mon Jan 27 2026 TProxy Team <tproxy@example.com> - 1.0.0-1
+* Mon Jan 27 2026 Andrey Urbanovich <andrey@urbanovich.net> - 1.0.0-1
 - Initial package build
 EOF
 
