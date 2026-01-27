@@ -125,7 +125,15 @@ jobs:
             type=ref,event=pr
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=sha,prefix={{branch}}-
+            type=sha
+          flavor: |
+            latest=${{ github.ref == 'refs/heads/main' }}
+          tags-semver: |
+            {{#if is_pr}}
+            pr-{{number}}
+            {{else if is_tag}}
+            {{version}}
+            {{/if}}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
