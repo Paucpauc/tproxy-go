@@ -76,7 +76,7 @@ jobs:
 
       - name: Build packages
         run: |
-          ./docker-build-packages.sh
+          ./docker-build-packages-minimal.sh
         env:
           ARCH: ${{ matrix.arch }}
 

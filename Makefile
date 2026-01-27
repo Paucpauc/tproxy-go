@@ -9,7 +9,7 @@ TAG = latest
 # Supported architectures
 ARCHS = amd64 arm64 arm
 
-.PHONY: all build build-all docker-build docker-build-all docker docker-all packages packages-all docker-packages clean help test test-all docker-test docker-test-all
+.PHONY: all build build-all docker-build docker-build-all docker docker-all packages packages-all docker-packages-minimal clean help test test-all docker-test docker-test-all
 
 # Default target - use Docker-based build
 all: docker-build
@@ -49,21 +49,20 @@ docker-push:
 	@echo "Building and pushing Docker images for all architectures..."
 	@./docker-build.sh $(TAG) true
 
-# Build packages for current architecture
+# Build packages for all architectures using minimal approach
 packages:
-	@echo "Building packages for current architecture..."
-	@./build-deb.sh $(shell ./detect-arch.sh)
-	@./build-rpm.sh $(shell ./detect-arch.sh)
-
-# Build packages for all architectures
-packages-all:
-	@echo "Building packages for all architectures..."
+	@echo "Building packages for all architectures using minimal approach..."
 	@./build-packages.sh
 
-# Build packages for all architectures using Docker (no local tools required)
-docker-packages:
-	@echo "Building packages for all architectures using Docker..."
-	@./docker-build-packages.sh
+# Build packages for all architectures using minimal approach (alias)
+packages-all:
+	@echo "Building packages for all architectures using minimal approach..."
+	@./build-packages.sh
+
+# Build packages for all architectures using minimal Docker approach
+docker-packages-minimal:
+	@echo "Building packages for all architectures using minimal Docker approach..."
+	@./docker-build-packages-minimal.sh
 
 # Test targets
 
@@ -103,9 +102,11 @@ help:
 	@echo "  docker          - Build Docker image for current architecture"
 	@echo "  docker-all      - Build Docker images for all architectures"
 	@echo "  docker-push     - Build and push Docker images for all architectures"
-	@echo "  packages        - Build DEB/RPM packages for current architecture"
-	@echo "  packages-all    - Build DEB/RPM packages for all architectures"
-	@echo "  docker-packages - Build DEB/RPM packages using Docker (no local tools)"
+	@echo "  packages           - Build DEB/RPM packages for all architectures using minimal approach"
+	@echo "  packages-all       - Build DEB/RPM packages for all architectures (alias)"
+	
+	
+	@echo "  docker-packages-minimal - Build DEB/RPM packages using minimal Docker approach"
 	@echo "  clean           - Clean build artifacts"
 	@echo "  test            - Run tests using local Go"
 	@echo "  test-all        - Run all tests with verbose output and coverage"
@@ -125,8 +126,10 @@ help:
 	@echo "Usage examples:"
 	@echo "  make docker-build-all    # Build binaries for all architectures using Docker"
 	@echo "  make docker-all          # Build Docker images for all architectures"
-	@echo "  make docker-packages     # Build packages using Docker (no local tools)"
-	@echo "  make packages-all        # Build DEB/RPM packages for all architectures"
+	
+	@echo "  make docker-packages-minimal  # Build packages using minimal Docker approach"
+	@echo "  make packages-all             # Build DEB/RPM packages for all architectures"
+	
 	@echo "  make test                # Run tests using local Go"
 	@echo "  make docker-test         # Run tests using Docker"
 	@echo "  ./docker-build-binary.sh arm  # Build specifically for ARM using Docker"
