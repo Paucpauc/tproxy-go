@@ -9,7 +9,7 @@ TAG = latest
 # Supported architectures
 ARCHS = amd64 arm64 arm
 
-.PHONY: all build build-all docker-build docker-build-all docker docker-all packages packages-all docker-packages clean help
+.PHONY: all build build-all docker-build docker-build-all docker docker-all packages packages-all docker-packages clean help test test-all docker-test docker-test-all
 
 # Default target - use Docker-based build
 all: docker-build
@@ -65,6 +65,28 @@ docker-packages:
 	@echo "Building packages for all architectures using Docker..."
 	@./docker-build-packages.sh
 
+# Test targets
+
+# Run tests for current architecture (using local Go)
+test:
+	@echo "Running tests using local Go..."
+	@go test ./...
+
+# Run tests with verbose output and coverage (using local Go)
+test-all:
+	@echo "Running all tests with verbose output and coverage..."
+	@go test -v -cover ./...
+
+# Run tests using Docker (no local Go required)
+docker-test:
+	@echo "Running tests using Docker..."
+	@docker run --rm -v $(PWD):/app -w /app golang:1.21-alpine go test ./...
+
+# Run tests with verbose output and coverage using Docker
+docker-test-all:
+	@echo "Running all tests with verbose output and coverage using Docker..."
+	@docker run --rm -v $(PWD):/app -w /app golang:1.21-alpine go test -v -cover ./...
+
 # Clean build artifacts
 clean:
 	@echo "Cleaning build artifacts..."
@@ -85,6 +107,10 @@ help:
 	@echo "  packages-all    - Build DEB/RPM packages for all architectures"
 	@echo "  docker-packages - Build DEB/RPM packages using Docker (no local tools)"
 	@echo "  clean           - Clean build artifacts"
+	@echo "  test            - Run tests using local Go"
+	@echo "  test-all        - Run all tests with verbose output and coverage"
+	@echo "  docker-test     - Run tests using Docker (no local Go)"
+	@echo "  docker-test-all - Run all tests with verbose output and coverage using Docker"
 	@echo "  help            - Show this help message"
 	@echo ""
 	@echo "Architecture support:"
@@ -101,4 +127,6 @@ help:
 	@echo "  make docker-all          # Build Docker images for all architectures"
 	@echo "  make docker-packages     # Build packages using Docker (no local tools)"
 	@echo "  make packages-all        # Build DEB/RPM packages for all architectures"
+	@echo "  make test                # Run tests using local Go"
+	@echo "  make docker-test         # Run tests using Docker"
 	@echo "  ./docker-build-binary.sh arm  # Build specifically for ARM using Docker"

@@ -58,7 +58,7 @@ func getExpectedSNIFromFilename(filename string) string {
 // Test cases
 
 func TestParseSNI_WithHexDumpFiles(t *testing.T) {
-	testsDir := "../tests"
+	testsDir := "../../tests"
 
 	// Get all .hex files in tests directory
 	files, err := os.ReadDir(testsDir)
@@ -107,7 +107,7 @@ func TestParseSNI_WithHexDumpFiles(t *testing.T) {
 
 func TestParseSNI_ValidTLSHandshake(t *testing.T) {
 	// Test with the specific play.googleapis.com hex dump
-	filename := "../tests/sni_play.googleapis.com.hex"
+	filename := "../../tests/sni_play.googleapis.com.hex"
 	packetData, err := loadHexDump(filename)
 	if err != nil {
 		t.Skipf("Test file not found: %v", err)
@@ -214,7 +214,7 @@ func TestParseSNI_EdgeCases(t *testing.T) {
 
 func TestParseSNI_PartialData(t *testing.T) {
 	// Test with progressively larger chunks of data to ensure robustness
-	filename := "../tests/sni_play.googleapis.com.hex"
+	filename := "../../tests/sni_play.googleapis.com.hex"
 	packetData, err := loadHexDump(filename)
 	if err != nil {
 		t.Skipf("Test file not found: %v", err)
@@ -248,7 +248,7 @@ func TestParseSNI_PartialData(t *testing.T) {
 }
 
 func BenchmarkParseSNI(b *testing.B) {
-	filename := "../tests/sni_play.googleapis.com.hex"
+	filename := "../../tests/sni_play.googleapis.com.hex"
 	packetData, err := loadHexDump(filename)
 	if err != nil {
 		b.Skipf("Test file not found: %v", err)
