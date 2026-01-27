@@ -16,7 +16,7 @@ The proxy extracts SNI from TLS connections and routes traffic to upstream proxi
 %setup -q
 
 %build
-go build -o tproxy ./cmd/tproxy
+# Binary is pre-built, no compilation needed
 
 %install
 mkdir -p %{buildroot}/usr/bin
