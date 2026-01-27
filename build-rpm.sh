@@ -10,7 +10,7 @@ DEFAULT_ARCH="amd64"
 ARCH=${1:-$DEFAULT_ARCH}
 
 # Supported architectures for RPM packages
-SUPPORTED_ARCHS=("amd64" "arm64")
+SUPPORTED_ARCHS=("amd64")
 
 # Validate architecture
 if [[ ! " ${SUPPORTED_ARCHS[@]} " =~ " ${ARCH} " ]]; then
@@ -23,9 +23,6 @@ fi
 case $ARCH in
     "amd64")
         RPM_ARCH="x86_64"
-        ;;
-    "arm64")
-        RPM_ARCH="aarch64"
         ;;
 esac
 

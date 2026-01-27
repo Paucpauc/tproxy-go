@@ -12,10 +12,9 @@ echo "=== Building DEB packages (minimal) ==="
 ./build-deb-minimal.sh amd64
 ./build-deb-minimal.sh arm64
 
-# Build RPM packages (amd64 only - cross-compilation for arm64 requires special setup)
+# Build RPM packages (amd64 only)
 echo "=== Building RPM packages ==="
 ./build-rpm.sh amd64
-echo "Note: RPM package for arm64 requires native arm64 build environment"
 
 echo "All packages built successfully!"
 echo "Packages location: build/packages/"
