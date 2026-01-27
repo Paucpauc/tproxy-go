@@ -76,11 +76,18 @@ tproxy --config /etc/tproxy/proxy_config.yaml
 
 4. **Configure iptables**:
 ```bash
-# Redirect HTTPS traffic to SNI proxy
-iptables -t nat -I PREROUTING -p tcp --dport 443 -j DNAT --to-destination 127.0.0.1:3130
+# Create address list for proxy clients (replace with your client IPs/subnets)
+# Example: iptables -t nat -I PREROUTING -s 192.168.1.0/24 -p tcp --dport 443 -j DNAT --to-destination 127.0.0.1:3130
 
-# Redirect HTTP traffic to HTTP proxy
-iptables -t nat -I PREROUTING -p tcp --dport 80 -j DNAT --to-destination 127.0.0.1:3131
+# Redirect HTTPS traffic from specific clients to SNI proxy
+iptables -t nat -I PREROUTING -s 192.168.1.0/24 -p tcp --dport 443 -j DNAT --to-destination 127.0.0.1:3130
+
+# Redirect HTTP traffic from specific clients to HTTP proxy
+iptables -t nat -I PREROUTING -s 192.168.1.0/24 -p tcp --dport 80 -j DNAT --to-destination 127.0.0.1:3131
+
+# Exclude proxy server traffic from redirection (prevent dead loop)
+iptables -t nat -I PREROUTING -s 127.0.0.1 -j ACCEPT
+iptables -t nat -I PREROUTING -s 192.168.1.100 -j ACCEPT  # Replace with proxy server IP
 ```
 
 ## Installation Methods
@@ -214,30 +221,41 @@ services:
 
 ### 4. Mikrotik Container Deployment
 
-Mikrotik routers with Container support can run TProxy directly. The ARMv7 build is specifically optimized for Mikrotik HAP AC2 routers.
+Mikrotik routers with Container support can run TProxy directly. The ARMv7 build is specifically optimized for Mikrotik HAP AC2 routers. This setup requires creating a veth interface for the container and configuring proper traffic redirection using firewall address lists.
 
 #### Prerequisites
 
 - Mikrotik router with Container package installed
 - Sufficient storage space for the container image
 - Network access to download the image
+- Basic understanding of Mikrotik firewall and networking
 
 #### Deployment Steps
 
-1. **Prepare the Mikrotik router**:
+1. **Create veth interface for the container**:
+```bash
+# Create veth interface pair with separate network
+/interface veth add name=veth-tproxy address=10.10.10.2/24
+/interface veth add name=veth-host address=10.10.10.1/24
+
+# Add veth-host to bridge (usually bridge1)
+/interface bridge port add bridge=bridge1 interface=veth-host
+```
+
+2. **Prepare the Mikrotik router for containers**:
 ```bash
 # Enable container support
 /container config set registry-url=https://registry-1.docker.io tmpdir=flash1
 
-# Create storage for containers
+# Create storage for container configuration
 /container mounts add name=tproxy-config src=/flash/tproxy dst=/etc/tproxy
 ```
 
-2. **Download and run the container**:
+3. **Download and run the container**:
 ```bash
-# Pull the ARMv7 image
+# Pull the ARMv7 image with veth interface
 /container add remote-image=ghcr.io/paucpauc/tproxy:latest-arm \
-  interface=bridge \
+  interface=veth-tproxy \
   root-dir=flash1/tproxy \
   mounts=tproxy-config
 
@@ -245,15 +263,37 @@ Mikrotik routers with Container support can run TProxy directly. The ARMv7 build
 /container start 0
 ```
 
-3. **Configure iptables on Mikrotik**:
+4. **Configure firewall address list for traffic redirection**:
 ```bash
-# Redirect HTTP traffic
-/ip firewall nat add chain=dstnat protocol=tcp dst-port=80 \
-  action=dst-nat to-addresses=127.0.0.1 to-ports=3131
+# Create address list for devices that should use the proxy
+/ip firewall address-list add list=proxy-clients address=192.168.88.10
+/ip firewall address-list add list=proxy-clients address=192.168.88.20
+# Add more IPs as needed
 
-# Redirect HTTPS traffic
-/ip firewall nat add chain=dstnat protocol=tcp dst-port=443 \
-  action=dst-nat to-addresses=127.0.0.1 to-ports=3130
+# Configure NAT for outgoing traffic from container
+/ip firewall nat add chain=srcnat src-address=10.10.10.0/24 \
+  out-interface=!veth-tproxy \
+  action=masquerade
+```
+
+5. **Configure traffic redirection rules**:
+```bash
+# Redirect HTTP traffic from proxy-clients to container
+/ip firewall nat add chain=dstnat src-address-list=proxy-clients \
+  protocol=tcp dst-port=80 \
+  action=dst-nat to-addresses=10.10.10.2 to-ports=3131
+
+# Redirect HTTPS traffic from proxy-clients to container
+/ip firewall nat add chain=dstnat src-address-list=proxy-clients \
+  protocol=tcp dst-port=443 \
+  action=dst-nat to-addresses=10.10.10.2 to-ports=3130
+
+# Exclude container traffic from being redirected (to avoid dead loops)
+/ip firewall nat add chain=dstnat src-address=10.10.10.2 \
+  action=accept
+
+# Add route for container network if needed
+/ip route add dst-address=10.10.10.0/24 gateway=10.10.10.1
 ```
 
 #### Alternative: Manual Binary Deployment
@@ -276,6 +316,28 @@ scp build/tproxy-arm admin@mikrotik-ip:/flash/tproxy
     /flash/tproxy --config /flash/tproxy/proxy_config.yaml
 }
 /system scheduler add name=start-tproxy start-time=startup on-event=start-tproxy
+```
+
+#### Configuration Example for Selective Traffic
+
+Create a configuration that works with the address list approach:
+
+```yaml
+# /flash/tproxy/proxy_config.yaml
+listen:
+  host: "10.10.10.2"    # Listen on veth interface
+  https_port: 3130
+  http_port: 3131
+
+rules:
+  - pattern: ".*\\.google\\.com"
+    proxy: "DIRECT"
+  - pattern: ".*\\.yandex\\.ru"
+    proxy: "DIRECT"
+  - pattern: ".*\\.internal\\.com"
+    proxy: "DROP"
+  - pattern: ".*"
+    proxy: "upstream-proxy.example.com:8080"
 ```
 
 ## Configuration Guide
@@ -437,6 +499,25 @@ netstat -tlnp | grep 313
 - Check for non-standard TLS handshakes
 - Verify certificate validation
 - Test with different clients
+
+#### Dead Loop Prevention
+
+**Symptoms**: Proxy becomes unresponsive, high CPU usage, connections timeout
+**Cause**: iptables rules redirect ALL traffic including proxy's own outbound connections
+**Solutions**:
+- Always restrict iptables rules to specific source IPs/subnets
+- Exclude proxy server IP from redirection rules
+- Use address lists for better management
+
+```bash
+# ❌ WRONG - Causes dead loop
+iptables -t nat -I PREROUTING -p tcp --dport 443 -j DNAT --to-destination 127.0.0.1:3130
+
+# ✅ CORRECT - Restrict to client network
+iptables -t nat -I PREROUTING -s 192.168.1.0/24 -p tcp --dport 443 -j DNAT --to-destination 127.0.0.1:3130
+iptables -t nat -I PREROUTING -s 127.0.0.1 -j ACCEPT
+iptables -t nat -I PREROUTING -s 192.168.1.100 -j ACCEPT  # Proxy server IP
+```
 
 ### Debug Mode
 

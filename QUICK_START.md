@@ -64,13 +64,18 @@ sudo systemctl start tproxy
 ### Configure iptables
 
 ```bash
-# Redirect HTTP traffic
-iptables -t nat -I PREROUTING -p tcp --dport 80 \
+# Redirect HTTP traffic from specific clients
+# Replace 192.168.1.0/24 with your client network
+iptables -t nat -I PREROUTING -s 192.168.1.0/24 -p tcp --dport 80 \
   -j DNAT --to-destination 127.0.0.1:3131
 
-# Redirect HTTPS traffic
-iptables -t nat -I PREROUTING -p tcp --dport 443 \
+# Redirect HTTPS traffic from specific clients
+iptables -t nat -I PREROUTING -s 192.168.1.0/24 -p tcp --dport 443 \
   -j DNAT --to-destination 127.0.0.1:3130
+
+# Exclude proxy server traffic from redirection (prevent dead loop)
+iptables -t nat -I PREROUTING -s 127.0.0.1 -j ACCEPT
+iptables -t nat -I PREROUTING -s 192.168.1.100 -j ACCEPT  # Replace with proxy server IP
 ```
 
 ### Verify Operation
