@@ -26,7 +26,7 @@ mkdir -p %{buildroot}/etc/tproxy
 install -m 644 proxy_config.yaml %{buildroot}/etc/tproxy/
 
 mkdir -p %{buildroot}/usr/lib/systemd/system
-install -m 644 packaging/tproxy.service %{buildroot}/usr/lib/systemd/system/tproxy.service
+install -m 644 tproxy.service %{buildroot}/usr/lib/systemd/system/tproxy.service
 
 %files
 /usr/bin/tproxy
