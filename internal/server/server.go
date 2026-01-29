@@ -6,6 +6,7 @@ import (
 	"net"
 	"sync"
 	"syscall"
+	"time"
 	"unsafe"
 
 	"tproxy/internal/config"
@@ -62,7 +63,7 @@ func getOriginalDst(conn net.Conn) (string, int, error) {
 	return ip, port, nil
 }
 
-func handleHTTPSClient(conn net.Conn, rules []config.Rule) {
+func handleHTTPSClient(conn net.Conn, rules []config.Rule, timeout int) {
 	defer func() {
 		if err := conn.Close(); err != nil {
 			// Connection close errors are expected and can be safely ignored
@@ -112,10 +113,10 @@ func handleHTTPSClient(conn net.Conn, rules []config.Rule) {
 		return
 	}
 
-	proxyConnection(sni, originalPort, originalIP, clientIP, conn, proxyAction, initialData, true)
+	proxyConnection(sni, originalPort, originalIP, clientIP, conn, proxyAction, initialData, true, timeout)
 }
 
-func handleHTTPClient(conn net.Conn, rules []config.Rule) {
+func handleHTTPClient(conn net.Conn, rules []config.Rule, timeout int) {
 	defer func() {
 		if err := conn.Close(); err != nil {
 			// Connection close errors are expected and can be safely ignored
@@ -158,7 +159,7 @@ func handleHTTPClient(conn net.Conn, rules []config.Rule) {
 		return
 	}
 
-	proxyConnection(host, port, originalIP, clientIP, conn, proxyAction, initialData, false)
+	proxyConnection(host, port, originalIP, clientIP, conn, proxyAction, initialData, false, timeout)
 }
 
 func proxyConnection(
@@ -170,6 +171,7 @@ func proxyConnection(
 	proxyAction *config.ProxyAction,
 	initialData []byte,
 	isHTTPS bool,
+	timeout int,
 ) {
 	// If originalIP is not provided, try to extract it from client connection
 	if originalIP == "" {
@@ -190,10 +192,10 @@ func proxyConnection(
 		fmt.Printf("%s => %s:%d: Proxying connection for %s:%d via %s:%d\n",
 			clientIP, originalIP, targetPort, targetHost, targetPort, proxyAction.Host, proxyAction.Port)
 
-		remoteConn, err = proxy.ConnectViaProxy(proxyAction.Host, proxyAction.Port, targetHost, targetPort, clientIP)
+		remoteConn, err = proxy.ConnectViaProxy(proxyAction.Host, proxyAction.Port, targetHost, targetPort, clientIP, timeout)
 	} else {
 		fmt.Printf("%s => %s:%d: Direct connection for %s:%d\n", clientIP, originalIP, targetPort, targetHost, targetPort)
-		remoteConn, err = proxy.ConnectDirect(targetHost, targetPort)
+		remoteConn, err = proxy.ConnectDirect(targetHost, targetPort, timeout)
 	}
 
 	if err != nil {
@@ -206,6 +208,17 @@ func proxyConnection(
 			_ = closeErr // explicitly ignore the error
 		}
 	}()
+
+	// Set read/write deadlines
+	deadline := time.Now().Add(time.Duration(timeout) * time.Second)
+	if err := remoteConn.SetDeadline(deadline); err != nil {
+		fmt.Printf("Failed to set deadline: %v\n", err)
+		return
+	}
+	if err := clientConn.SetDeadline(deadline); err != nil {
+		fmt.Printf("Failed to set deadline: %v\n", err)
+		return
+	}
 
 	// Send initial data if we have it
 	if len(initialData) > 0 {
@@ -272,7 +285,7 @@ func StartServers(config *config.Config) error {
 				fmt.Printf("HTTPS accept error: %v\n", err)
 				continue
 			}
-			go handleHTTPSClient(conn, rules)
+			go handleHTTPSClient(conn, rules, listenConfig.Timeout)
 		}
 	}()
 
@@ -283,6 +296,6 @@ func StartServers(config *config.Config) error {
 			fmt.Printf("HTTP accept error: %v\n", err)
 			continue
 		}
-		go handleHTTPClient(conn, rules)
+		go handleHTTPClient(conn, rules, listenConfig.Timeout)
 	}
 }

@@ -126,6 +126,9 @@ rules:
 	if config.Listen.HTTPPort != 3131 {
 		t.Errorf("Expected default HTTP port 3131, got %d", config.Listen.HTTPPort)
 	}
+	if config.Listen.Timeout != DEFAULT_TIMEOUT {
+		t.Errorf("Expected default timeout %d, got %d", DEFAULT_TIMEOUT, config.Listen.Timeout)
+	}
 	if len(config.Rules) != 1 {
 		t.Errorf("Expected 1 rule, got %d", len(config.Rules))
 	}
@@ -250,5 +253,34 @@ func TestParseProxyAddress_IPv6(t *testing.T) {
 	}
 	if port != 3128 {
 		t.Errorf("Expected port 3128, got %d", port)
+	}
+}
+
+func TestLoadConfig_TimeoutDefaults(t *testing.T) {
+	// Test that default timeout is set when not specified
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "config.yaml")
+	configContent := `
+listen:
+  host: "127.0.0.1"
+  https_port: 3130
+  http_port: 3131
+rules:
+  - pattern: ".*"
+    proxy: "DIRECT"
+`
+	err := os.WriteFile(configPath, []byte(configContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create config file: %v", err)
+	}
+
+	config, err := LoadConfig(configPath)
+	if err != nil {
+		t.Fatalf("LoadConfig failed: %v", err)
+	}
+
+	// Verify default timeout is set
+	if config.Listen.Timeout != DEFAULT_TIMEOUT {
+		t.Errorf("Expected default timeout %d, got %d", DEFAULT_TIMEOUT, config.Listen.Timeout)
 	}
 }

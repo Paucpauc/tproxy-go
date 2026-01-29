@@ -13,12 +13,14 @@ const (
 	DEFAULT_HTTPS_PORT = 443
 	DEFAULT_HTTP_PORT  = 80
 	BUFFER_SIZE        = 4096
+	DEFAULT_TIMEOUT     = 900 // seconds
 )
 
 type ListenConfig struct {
 	Host      string `yaml:"host"`
 	HTTPSPort int    `yaml:"https_port"`
 	HTTPPort  int    `yaml:"http_port"`
+	Timeout   int    `yaml:"timeout"` // Timeout in seconds
 }
 
 type Rule struct {
@@ -36,6 +38,7 @@ var DefaultConfig = Config{
 		Host:      "127.0.0.1",
 		HTTPSPort: 3130,
 		HTTPPort:  3131,
+		Timeout:   DEFAULT_TIMEOUT,
 	},
 	Rules: []Rule{
 		{Pattern: ".*", Proxy: "DIRECT"},
@@ -67,6 +70,9 @@ func LoadConfig(configPath string) (*Config, error) {
 	}
 	if config.Listen.HTTPPort == 0 {
 		config.Listen.HTTPPort = DefaultConfig.Listen.HTTPPort
+	}
+	if config.Listen.Timeout == 0 {
+		config.Listen.Timeout = DefaultConfig.Listen.Timeout
 	}
 	if len(config.Rules) == 0 {
 		config.Rules = DefaultConfig.Rules

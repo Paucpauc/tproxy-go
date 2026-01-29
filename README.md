@@ -39,6 +39,7 @@ listen:
   host: "127.0.0.1"
   https_port: 3130
   http_port: 3131
+  timeout: 900
 
 rules:
   - pattern: ".*\\.google\\.com"
@@ -111,6 +112,12 @@ make packages
 
 ### Example Configuration
 ```yaml
+listen:
+  host: "127.0.0.1"
+  https_port: 3130
+  http_port: 3131
+  timeout: 900
+
 rules:
   - pattern: ".*\\.internal\\.com"
     proxy: "DIRECT"

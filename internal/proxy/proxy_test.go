@@ -415,7 +415,7 @@ func TestConnectDirect_Success(t *testing.T) {
 	host := "127.0.0.1"
 	port := listener.Addr().(*net.TCPAddr).Port
 
-	conn, err := ConnectDirect(host, port)
+	conn, err := ConnectDirect(host, port, 30) // 30 second timeout
 	if err != nil {
 		t.Errorf("ConnectDirect failed: %v", err)
 		return
@@ -432,7 +432,7 @@ func TestConnectDirect_Success(t *testing.T) {
 }
 
 func TestConnectDirect_InvalidHost(t *testing.T) {
-	conn, err := ConnectDirect("invalid-host-that-does-not-exist", 9999)
+	conn, err := ConnectDirect("invalid-host-that-does-not-exist", 9999, 30) // 30 second timeout
 	if err == nil {
 		if err := conn.Close(); err != nil {
 			t.Logf("Connection close error: %v", err)
@@ -503,7 +503,7 @@ func TestConnectViaProxy_Success(t *testing.T) {
 	targetPort := 443
 	clientIP := "192.168.1.1"
 
-	conn, err := ConnectViaProxy(proxyHost, proxyPort, targetHost, targetPort, clientIP)
+	conn, err := ConnectViaProxy(proxyHost, proxyPort, targetHost, targetPort, clientIP, 30) // 30 second timeout
 	if err != nil {
 		t.Errorf("ConnectViaProxy failed: %v", err)
 		return
@@ -553,7 +553,7 @@ func TestConnectViaProxy_ProxyError(t *testing.T) {
 	proxyHost := "127.0.0.1"
 	proxyPort := proxyListener.Addr().(*net.TCPAddr).Port
 
-	conn, err := ConnectViaProxy(proxyHost, proxyPort, "example.com", 443, "192.168.1.1")
+	conn, err := ConnectViaProxy(proxyHost, proxyPort, "example.com", 443, "192.168.1.1", 30) // 30 second timeout
 	if err == nil {
 		if err := conn.Close(); err != nil {
 			t.Logf("Connection close error: %v", err)
@@ -563,7 +563,7 @@ func TestConnectViaProxy_ProxyError(t *testing.T) {
 }
 
 func TestConnectViaProxy_InvalidProxy(t *testing.T) {
-	conn, err := ConnectViaProxy("invalid-proxy", 9999, "example.com", 443, "192.168.1.1")
+	conn, err := ConnectViaProxy("invalid-proxy", 9999, "example.com", 443, "192.168.1.1", 30) // 30 second timeout
 	if err == nil {
 		if err := conn.Close(); err != nil {
 			t.Logf("Connection close error: %v", err)

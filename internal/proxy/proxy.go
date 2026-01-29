@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 func ParseHTTPHost(data []byte) (string, int) {
@@ -242,16 +243,35 @@ func Pipe(ctx context.Context, src, dst net.Conn, wg *sync.WaitGroup) {
 	}
 }
 
-func ConnectDirect(host string, port int) (net.Conn, error) {
-	return net.Dial("tcp", net.JoinHostPort(host, strconv.Itoa(port)))
-}
-
-func ConnectViaProxy(proxyHost string, proxyPort int, targetHost string, targetPort int, clientIP string) (net.Conn, error) {
-	conn, err := net.Dial("tcp", net.JoinHostPort(proxyHost, strconv.Itoa(proxyPort)))
+func ConnectDirect(host string, port int, timeout int) (net.Conn, error) {
+	conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, strconv.Itoa(port)), time.Duration(timeout)*time.Second)
 	if err != nil {
 		return nil, err
 	}
+	
+	// Set read/write deadlines
+	deadline := time.Now().Add(time.Duration(timeout) * time.Second)
+	if err := conn.SetDeadline(deadline); err != nil {
+		conn.Close()
+		return nil, err
+	}
+	
+	return conn, nil
+}
 
+func ConnectViaProxy(proxyHost string, proxyPort int, targetHost string, targetPort int, clientIP string, timeout int) (net.Conn, error) {
+	conn, err := net.DialTimeout("tcp", net.JoinHostPort(proxyHost, strconv.Itoa(proxyPort)), time.Duration(timeout)*time.Second)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Set read/write deadlines
+	deadline := time.Now().Add(time.Duration(timeout) * time.Second)
+	if err := conn.SetDeadline(deadline); err != nil {
+		conn.Close()
+		return nil, err
+	}
+	
 	connectRequest := fmt.Sprintf(
 		"CONNECT %s:%d HTTP/1.1\r\n"+
 			"Host: %s:%d\r\n"+
@@ -262,7 +282,7 @@ func ConnectViaProxy(proxyHost string, proxyPort int, targetHost string, targetP
 		targetHost, targetPort,
 		clientIP, clientIP,
 	)
-
+	
 	if _, err := conn.Write([]byte(connectRequest)); err != nil {
 		if closeErr := conn.Close(); closeErr != nil {
 			// Connection close errors are expected and can be safely ignored
@@ -270,7 +290,7 @@ func ConnectViaProxy(proxyHost string, proxyPort int, targetHost string, targetP
 		}
 		return nil, err
 	}
-
+	
 	// Read proxy response
 	reader := bufio.NewReader(conn)
 	response, err := reader.ReadString('\n')
@@ -281,7 +301,7 @@ func ConnectViaProxy(proxyHost string, proxyPort int, targetHost string, targetP
 		}
 		return nil, err
 	}
-
+	
 	if !strings.HasPrefix(response, "HTTP/1.1 200") {
 		if closeErr := conn.Close(); closeErr != nil {
 			// Connection close errors are expected and can be safely ignored
@@ -289,7 +309,7 @@ func ConnectViaProxy(proxyHost string, proxyPort int, targetHost string, targetP
 		}
 		return nil, fmt.Errorf("proxy connection failed: %s", response)
 	}
-
+	
 	// Read remaining headers until empty line
 	for {
 		line, err := reader.ReadString('\n')
@@ -297,6 +317,6 @@ func ConnectViaProxy(proxyHost string, proxyPort int, targetHost string, targetP
 			break
 		}
 	}
-
+	
 	return conn, nil
 }

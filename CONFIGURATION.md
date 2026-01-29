@@ -15,6 +15,7 @@ listen:
   host: "127.0.0.1"      # Interface to bind to (default: 127.0.0.1)
   https_port: 3130       # HTTPS/SNI proxy port (default: 3130)
   http_port: 3131        # HTTP proxy port (default: 3131)
+  timeout: 900           # Connection timeout in seconds (default: 900)
 
 # Logging configuration (optional)
 logging:
@@ -29,7 +30,6 @@ rules:
 
 # Advanced settings (optional)
 advanced:
-  timeout: 30           # Connection timeout in seconds (default: 30)
   max_connections: 1000 # Maximum concurrent connections (default: 1000)
   buffer_size: 8192     # Buffer size for data transfer (default: 8192)
 ```
@@ -47,6 +47,24 @@ Defines how TProxy listens for incoming connections.
   - Specific IP: `"192.168.1.100"`
 - `https_port`: Port for HTTPS/SNI proxy (typically 443 redirects here)
 - `http_port`: Port for HTTP proxy (typically 80 redirects here)
+- `timeout`: Connection timeout in seconds for proxy connections (default: 900)
+
+### Timeout Configuration
+
+The `timeout` parameter in the `listen` section controls how long TProxy will wait for network operations to complete. This includes:
+- Initial connection establishment to target servers
+- Reading data from clients and target servers
+- Writing data to clients and target servers
+
+Setting an appropriate timeout value is important for:
+1. Preventing hanging connections that consume resources
+2. Ensuring responsive failure handling
+3. Balancing between reliability and performance
+
+**Recommendations:**
+- For high-latency networks: 1200-1800 seconds
+- For standard networks: 600-900 seconds (default)
+- For low-latency environments: 300-600 seconds
 
 **Examples:**
 ```yaml
