@@ -113,7 +113,7 @@ func handleHTTPSClient(conn net.Conn, rules []config.Rule, timeout int) {
 		return
 	}
 
-	proxyConnection(sni, originalPort, originalIP, clientIP, conn, proxyAction, initialData, true, timeout)
+	proxyConnection(sni, originalPort, originalIP, clientIP, conn, proxyAction, initialData, timeout)
 }
 
 func handleHTTPClient(conn net.Conn, rules []config.Rule, timeout int) {
@@ -159,7 +159,7 @@ func handleHTTPClient(conn net.Conn, rules []config.Rule, timeout int) {
 		return
 	}
 
-	proxyConnection(host, port, originalIP, clientIP, conn, proxyAction, initialData, false, timeout)
+	proxyConnection(host, port, originalIP, clientIP, conn, proxyAction, initialData, timeout)
 }
 
 func proxyConnection(
@@ -170,7 +170,6 @@ func proxyConnection(
 	clientConn net.Conn,
 	proxyAction *config.ProxyAction,
 	initialData []byte,
-	isHTTPS bool,
 	timeout int,
 ) {
 	// If originalIP is not provided, try to extract it from client connection

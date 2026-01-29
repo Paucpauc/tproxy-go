@@ -95,10 +95,8 @@ func TestProxyConnection_Direct(t *testing.T) {
 	clientIP := "192.168.1.2"
 	proxyAction := &config.ProxyAction{Type: "DIRECT"}
 	initialData := []byte(httpRequest)
-	isHTTPS := false
-
 	// This should attempt to connect and fail (which is expected in test environment)
-	proxyConnection(targetHost, targetPort, originalIP, clientIP, clientConn, proxyAction, initialData, isHTTPS, 30) // 30 second timeout
+	proxyConnection(targetHost, targetPort, originalIP, clientIP, clientConn, proxyAction, initialData, 30) // 30 second timeout
 
 	// Verify the connection was attempted (connection will be closed)
 	if !clientConn.closed {
@@ -118,9 +116,7 @@ func TestProxyConnection_Drop(t *testing.T) {
 	originalIP := "192.168.1.1"
 	clientIP := "192.168.1.2"
 	initialData := []byte(httpRequest)
-	isHTTPS := false
-
-	proxyConnection(targetHost, targetPort, originalIP, clientIP, clientConn, proxyAction, initialData, isHTTPS, 30) // 30 second timeout
+	proxyConnection(targetHost, targetPort, originalIP, clientIP, clientConn, proxyAction, initialData, 30) // 30 second timeout
 
 	// For DROP action, the connection should be handled (may not necessarily close immediately in mock)
 	// We'll verify the function executed without panicking
@@ -142,10 +138,8 @@ func TestProxyConnection_Proxy(t *testing.T) {
 	originalIP := "192.168.1.1"
 	clientIP := "192.168.1.2"
 	initialData := []byte(httpRequest)
-	isHTTPS := false
-
 	// This will attempt proxy connection and fail (expected in test)
-	proxyConnection(targetHost, targetPort, originalIP, clientIP, clientConn, proxyAction, initialData, isHTTPS, 30) // 30 second timeout
+	proxyConnection(targetHost, targetPort, originalIP, clientIP, clientConn, proxyAction, initialData, 30) // 30 second timeout
 
 	// For PROXY action, connection attempt will fail in test environment
 	// We'll verify the function executed without panicking
