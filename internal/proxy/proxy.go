@@ -12,6 +12,31 @@ import (
 	"time"
 )
 
+// TLS constants for parsing
+const (
+	// TLS Record Layer
+	recordTypeHandshake = 0x16
+	tlsVersion10        = 0x0301
+	tlsVersion11        = 0x0302
+	tlsVersion12        = 0x0303
+
+	// Handshake Type
+	handshakeTypeClientHello = 0x01
+
+	// Extension Types
+	extensionTypeSNI = 0x0000
+
+	// Name Types
+	nameTypeHost = 0x00
+
+	// Fixed Sizes
+	recordHeaderSize     = 5
+	handshakeHeaderSize  = 4
+	randomSize           = 32
+	extensionHeaderSize  = 4
+	serverNameHeaderSize = 3
+)
+
 func ParseHTTPHost(data []byte) (string, int) {
 	reader := bufio.NewReader(bytes.NewReader(data))
 
@@ -46,16 +71,66 @@ func ParseHTTPHost(data []byte) (string, int) {
 	return "", 80
 }
 
-func ParseSNI(data []byte) string {
-	// Find TLS handshake in the data (skip TCP/IP headers)
-	startPos := -1
+// findTLSHandshake locates the TLS handshake in the data and returns its starting position
+func findTLSHandshake(data []byte) int {
 	for i := 0; i < len(data)-2; i++ {
-		if data[i] == 0x16 && data[i+1] == 0x03 && (data[i+2] == 0x01 || data[i+2] == 0x02 || data[i+2] == 0x03) {
-			startPos = i
-			break
+		if data[i] == recordTypeHandshake &&
+			data[i+1] == 0x03 &&
+			(data[i+2] == 0x01 || data[i+2] == 0x02 || data[i+2] == 0x03) {
+			return i
 		}
 	}
+	return -1
+}
 
+// hasEnoughData checks if there's enough data remaining from position
+func hasEnoughData(data []byte, pos int, required int) bool {
+	return pos+required <= len(data)
+}
+
+// skipField skips a field of specified length and returns the new position
+func skipField(data []byte, pos int, length int) int {
+	if !hasEnoughData(data, pos, length) {
+		return len(data) // Return end if not enough data
+	}
+	return pos + length
+}
+
+// skipVariableField skips a variable-length field with length prefix
+func skipVariableField(data []byte, pos int, lengthBytes int) int {
+	if !hasEnoughData(data, pos, lengthBytes) {
+		return len(data)
+	}
+
+	var length int
+	newPos := pos
+
+	switch lengthBytes {
+	case 1:
+		length = int(data[newPos])
+		newPos++
+	case 2:
+		length = int(data[newPos])<<8 | int(data[newPos+1])
+		newPos += 2
+	case 3:
+		length = int(data[newPos])<<16 | int(data[newPos+1])<<8 | int(data[newPos+2])
+		newPos += 3
+	}
+
+	// Check if length is reasonable to prevent infinite loops
+	if length < 0 || length > 65536 { // Max reasonable length
+		return len(data)
+	}
+
+	return skipField(data, newPos, length)
+}
+
+// ParseSNI extracts the Server Name Indication (SNI) from TLS ClientHello data
+// It parses the TLS handshake structure to find the SNI extension and returns
+// the hostname if found, or an empty string if not found or on error.
+func ParseSNI(data []byte) string {
+	// Find TLS handshake in the data (skip TCP/IP headers)
+	startPos := findTLSHandshake(data)
 	if startPos == -1 {
 		return "" // Not a TLS handshake found
 	}
@@ -63,20 +138,16 @@ func ParseSNI(data []byte) string {
 	// Use data starting from TLS handshake
 	data = data[startPos:]
 
-	// Check if this is a TLS handshake
-	if len(data) < 5 || data[0] != 0x16 {
+	// Validate TLS record header
+	if len(data) < 5 || data[0] != recordTypeHandshake {
 		return "" // Not a TLS handshake
 	}
 
 	// Parse TLS record header
 	recordLength := int(data[3])<<8 | int(data[4])
-	// Don't require complete record - we only need the beginning to parse SNI
-	// if len(data) < 5+recordLength {
-	// 	return "" // Incomplete record
-	// }
 
-	// Check if this is a ClientHello
-	if len(data) < 9 || data[5] != 0x01 {
+	// Validate ClientHello
+	if len(data) < 9 || data[5] != handshakeTypeClientHello {
 		return "" // Not a ClientHello or insufficient data
 	}
 
@@ -102,55 +173,26 @@ func ParseSNI(data []byte) string {
 	pos := 9
 
 	// Skip ClientVersion (2 bytes)
-	if pos+2 > len(data) {
-		return ""
-	}
-	pos += 2
+	pos = skipField(data, pos, 2)
 
 	// Skip Random (32 bytes)
-	if pos+32 > len(data) {
-		return ""
-	}
-	pos += 32
+	pos = skipField(data, pos, randomSize)
 
 	// Skip SessionID (1 byte length + session data)
-	if pos >= len(data) {
-		return ""
-	}
-	sessionIDLen := int(data[pos])
-	pos++
-	if pos+sessionIDLen > len(data) {
-		return ""
-	}
-	pos += sessionIDLen
+	pos = skipVariableField(data, pos, 1)
 
 	// Skip CipherSuites (2 bytes length + cipher suites)
-	if pos+2 > len(data) {
-		return ""
-	}
-	cipherSuitesLen := int(data[pos])<<8 | int(data[pos+1])
-	pos += 2
-	if pos+cipherSuitesLen > len(data) {
-		return ""
-	}
-	pos += cipherSuitesLen
+	pos = skipVariableField(data, pos, 2)
 
 	// Skip CompressionMethods (1 byte length + methods)
-	if pos >= len(data) {
-		return ""
-	}
-	compressionMethodsLen := int(data[pos])
-	pos++
-	if pos+compressionMethodsLen > len(data) {
-		return ""
-	}
-	pos += compressionMethodsLen
+	pos = skipVariableField(data, pos, 1)
 
 	// Check if we have extensions
 	if pos+2 > len(data) {
 		return "" // No extensions
 	}
 
+	// Parse extensions
 	extensionsLength := int(data[pos])<<8 | int(data[pos+1])
 	pos += 2
 
@@ -172,7 +214,7 @@ func ParseSNI(data []byte) string {
 		}
 
 		// Check for Server Name Indication (type 0x0000)
-		if extType == 0x0000 {
+		if extType == extensionTypeSNI {
 			// Parse SNI extension data
 			if extLength < 2 {
 				break
@@ -199,7 +241,7 @@ func ParseSNI(data []byte) string {
 				}
 
 				// Check for host_name type (0x00)
-				if nameType == 0x00 {
+				if nameType == nameTypeHost {
 					return string(data[pos : pos+nameLength])
 				}
 
@@ -248,14 +290,17 @@ func ConnectDirect(host string, port int, timeout int) (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Set read/write deadlines
 	deadline := time.Now().Add(time.Duration(timeout) * time.Second)
 	if err := conn.SetDeadline(deadline); err != nil {
-		conn.Close()
+		if closeErr := conn.Close(); closeErr != nil {
+			// Connection close errors are expected and can be safely ignored
+			_ = closeErr // explicitly ignore the error
+		}
 		return nil, err
 	}
-	
+
 	return conn, nil
 }
 
@@ -264,14 +309,17 @@ func ConnectViaProxy(proxyHost string, proxyPort int, targetHost string, targetP
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Set read/write deadlines
 	deadline := time.Now().Add(time.Duration(timeout) * time.Second)
 	if err := conn.SetDeadline(deadline); err != nil {
-		conn.Close()
+		if closeErr := conn.Close(); closeErr != nil {
+			// Connection close errors are expected and can be safely ignored
+			_ = closeErr // explicitly ignore the error
+		}
 		return nil, err
 	}
-	
+
 	connectRequest := fmt.Sprintf(
 		"CONNECT %s:%d HTTP/1.1\r\n"+
 			"Host: %s:%d\r\n"+
@@ -282,7 +330,7 @@ func ConnectViaProxy(proxyHost string, proxyPort int, targetHost string, targetP
 		targetHost, targetPort,
 		clientIP, clientIP,
 	)
-	
+
 	if _, err := conn.Write([]byte(connectRequest)); err != nil {
 		if closeErr := conn.Close(); closeErr != nil {
 			// Connection close errors are expected and can be safely ignored
@@ -290,7 +338,7 @@ func ConnectViaProxy(proxyHost string, proxyPort int, targetHost string, targetP
 		}
 		return nil, err
 	}
-	
+
 	// Read proxy response
 	reader := bufio.NewReader(conn)
 	response, err := reader.ReadString('\n')
@@ -301,7 +349,7 @@ func ConnectViaProxy(proxyHost string, proxyPort int, targetHost string, targetP
 		}
 		return nil, err
 	}
-	
+
 	if !strings.HasPrefix(response, "HTTP/1.1 200") {
 		if closeErr := conn.Close(); closeErr != nil {
 			// Connection close errors are expected and can be safely ignored
@@ -309,7 +357,7 @@ func ConnectViaProxy(proxyHost string, proxyPort int, targetHost string, targetP
 		}
 		return nil, fmt.Errorf("proxy connection failed: %s", response)
 	}
-	
+
 	// Read remaining headers until empty line
 	for {
 		line, err := reader.ReadString('\n')
@@ -317,6 +365,6 @@ func ConnectViaProxy(proxyHost string, proxyPort int, targetHost string, targetP
 			break
 		}
 	}
-	
+
 	return conn, nil
 }
