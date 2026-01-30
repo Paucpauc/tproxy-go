@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"regexp"
 	"strconv"
@@ -47,7 +48,7 @@ var DefaultConfig = Config{
 
 func LoadConfig(configPath string) (*Config, error) {
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		fmt.Printf("Config file %s not found, using default config\n", configPath)
+		log.Printf("Config file %s not found, using default config\n", configPath)
 		return &DefaultConfig, nil
 	}
 
@@ -91,7 +92,7 @@ func FindProxyForHost(host string, rules []Rule) (*ProxyAction, error) {
 	for _, rule := range rules {
 		matched, err := regexp.MatchString(rule.Pattern, host)
 		if err != nil {
-			fmt.Printf("Invalid regex pattern: %s\n", rule.Pattern)
+			log.Printf("Invalid regex pattern: %s\n", rule.Pattern)
 			continue
 		}
 

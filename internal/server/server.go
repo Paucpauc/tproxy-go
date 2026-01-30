@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"log"
 	"net"
 	"sync"
 	"syscall"
@@ -98,7 +99,7 @@ func handleHTTPSClient(conn net.Conn, rules []config.Rule, timeout int) {
 	sni := proxy.ParseSNI(initialData)
 
 	if sni == "" {
-		fmt.Printf("SNI not found from %s -> %s:%d\n", clientIP, originalIP, originalPort)
+		log.Printf("SNI not found from %s -> %s:%d\n", clientIP, originalIP, originalPort)
 		// Use original IP as fallback (similar to Python version)
 		if originalIP != "" {
 			sni = originalIP
@@ -109,7 +110,7 @@ func handleHTTPSClient(conn net.Conn, rules []config.Rule, timeout int) {
 
 	proxyAction, err := config.FindProxyForHost(sni, rules)
 	if err != nil {
-		fmt.Printf("Error finding proxy for %s: %v\n", sni, err)
+		log.Printf("Error finding proxy for %s: %v\n", sni, err)
 		return
 	}
 
@@ -149,13 +150,13 @@ func handleHTTPClient(conn net.Conn, rules []config.Rule, timeout int) {
 	host, port := proxy.ParseHTTPHost(initialData)
 
 	if host == "" {
-		fmt.Printf("Host header not found from %s\n", clientIP)
+		log.Printf("Host header not found from %s\n", clientIP)
 		return
 	}
 
 	proxyAction, err := config.FindProxyForHost(host, rules)
 	if err != nil {
-		fmt.Printf("Error finding proxy for %s: %v\n", host, err)
+		log.Printf("Error finding proxy for %s: %v\n", host, err)
 		return
 	}
 
@@ -180,7 +181,7 @@ func proxyConnection(
 	}
 
 	if proxyAction.Type == "DROP" {
-		fmt.Printf("%s => %s:%d: Drop for %s:%d\n", clientIP, originalIP, targetPort, targetHost, targetPort)
+		log.Printf("%s => %s:%d: Drop for %s:%d\n", clientIP, originalIP, targetPort, targetHost, targetPort)
 		return
 	}
 
@@ -188,17 +189,17 @@ func proxyConnection(
 	var err error
 
 	if proxyAction.Type == "PROXY" && proxyAction.Host != "" && proxyAction.Port != 0 {
-		fmt.Printf("%s => %s:%d: Proxying connection for %s:%d via %s:%d\n",
+		log.Printf("%s => %s:%d: Proxying connection for %s:%d via %s:%d\n",
 			clientIP, originalIP, targetPort, targetHost, targetPort, proxyAction.Host, proxyAction.Port)
 
 		remoteConn, err = proxy.ConnectViaProxy(proxyAction.Host, proxyAction.Port, targetHost, targetPort, clientIP, timeout)
 	} else {
-		fmt.Printf("%s => %s:%d: Direct connection for %s:%d\n", clientIP, originalIP, targetPort, targetHost, targetPort)
+		log.Printf("%s => %s:%d: Direct connection for %s:%d\n", clientIP, originalIP, targetPort, targetHost, targetPort)
 		remoteConn, err = proxy.ConnectDirect(targetHost, targetPort, timeout)
 	}
 
 	if err != nil {
-		fmt.Printf("Connection failed: %v\n", err)
+		log.Printf("Connection failed: %v\n", err)
 		return
 	}
 	defer func() {
@@ -211,18 +212,18 @@ func proxyConnection(
 	// Set read/write deadlines
 	deadline := time.Now().Add(time.Duration(timeout) * time.Second)
 	if err := remoteConn.SetDeadline(deadline); err != nil {
-		fmt.Printf("Failed to set deadline: %v\n", err)
+		log.Printf("Failed to set deadline: %v\n", err)
 		return
 	}
 	if err := clientConn.SetDeadline(deadline); err != nil {
-		fmt.Printf("Failed to set deadline: %v\n", err)
+		log.Printf("Failed to set deadline: %v\n", err)
 		return
 	}
 
 	// Send initial data if we have it
 	if len(initialData) > 0 {
 		if _, err := remoteConn.Write(initialData); err != nil {
-			fmt.Printf("Failed to send initial data: %v\n", err)
+			log.Printf("Failed to send initial data: %v\n", err)
 			return
 		}
 	}
@@ -269,11 +270,11 @@ func StartServers(config *config.Config) error {
 		}
 	}()
 
-	fmt.Printf("SNI proxy (HTTPS) listening on %s:%d\n", listenConfig.Host, listenConfig.HTTPSPort)
-	fmt.Printf("Host proxy (HTTP) listening on %s:%d\n", listenConfig.Host, listenConfig.HTTPPort)
-	fmt.Println("Routing rules:")
+	log.Printf("SNI proxy (HTTPS) listening on %s:%d\n", listenConfig.Host, listenConfig.HTTPSPort)
+	log.Printf("Host proxy (HTTP) listening on %s:%d\n", listenConfig.Host, listenConfig.HTTPPort)
+	log.Println("Routing rules:")
 	for i, rule := range rules {
-		fmt.Printf("  %d. %s -> %s\n", i+1, rule.Pattern, rule.Proxy)
+		log.Printf("  %d. %s -> %s\n", i+1, rule.Pattern, rule.Proxy)
 	}
 
 	// Handle HTTPS connections
@@ -281,7 +282,7 @@ func StartServers(config *config.Config) error {
 		for {
 			conn, err := httpsListener.Accept()
 			if err != nil {
-				fmt.Printf("HTTPS accept error: %v\n", err)
+				log.Printf("HTTPS accept error: %v\n", err)
 				continue
 			}
 			go handleHTTPSClient(conn, rules, listenConfig.Timeout)
@@ -292,7 +293,7 @@ func StartServers(config *config.Config) error {
 	for {
 		conn, err := httpListener.Accept()
 		if err != nil {
-			fmt.Printf("HTTP accept error: %v\n", err)
+			log.Printf("HTTP accept error: %v\n", err)
 			continue
 		}
 		go handleHTTPClient(conn, rules, listenConfig.Timeout)

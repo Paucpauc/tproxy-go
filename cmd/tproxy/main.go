@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"log"
 
 	"tproxy/internal/config"
@@ -19,7 +18,7 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	fmt.Printf("Starting proxy server with config from %s\n", *configPath)
+	log.Printf("Starting proxy server with config from %s\n", *configPath)
 
 	// Start servers
 	if err := server.StartServers(config); err != nil {
